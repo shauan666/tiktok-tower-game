@@ -1,0 +1,2253 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小魔女蓋塔挑戰 — TikTok LIVE</title>
+<style>
+  /* ================= THEME — reskin the overlay by editing this block =================
+     The whole palette lives here. Gradients reuse the colours above, so one edit
+     propagates everywhere (header, goal bar, panels, footer, combo pill).
+     Asset images are NOT here — those come from CONFIG.assets (config.json). */
+  :root {
+    --bg-deep:#1a0b2e;          /* page / stage background */
+    --panel-bg:rgba(20,8,38,.86);
+    --panel-gradient:linear-gradient(180deg,rgba(38,16,66,.92),rgba(20,8,38,.92));
+    --brand-gradient:linear-gradient(90deg,#ff5da2,#7b2fbe);   /* footer pill */
+    --goal-gradient:linear-gradient(90deg,#ff5da2,#ffb347,#ffd700);
+    --combo-gradient:linear-gradient(90deg,#ff5722,#ff9800);
+    --combo-gold-gradient:linear-gradient(90deg,#b8860b,#ffd700);
+    --gold:#ffd700; --pink:#ff5da2; --purple:#7b2fbe; --purple-deep:#5b2a86;
+    --orange:#ffb347; --orange-deep:#ff9800;
+    --text:#fff; --text-soft:#ffe9f6; --text-muted:#d9c8f5;
+    --red:#ff5252; --red-dark:#e53935; --green:#2e7d32; --pink-dark:#c2185b;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:var(--bg-deep);
+    font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif; }
+  #overlayFit { position:absolute; width:1080px; height:1920px; transform-origin:0 0; }
+  #stage { position:relative; width:1080px; height:1920px; overflow:hidden;
+    background-color:var(--bg-deep); background-image:var(--asset-background); background-position:center top; background-size:cover; background-repeat:no-repeat; }
+  /* background art comes from CONFIG.assets.background (pixel night sky) */
+
+  /* ---------- round 6: ambient life (always moving, zero audience needed) ---------- */
+  /* #ambient sits behind the header / tower / panels (z-index 1) but above the
+     static night-sky JPG: drifting clouds, twinkling stars, moon glow. Pure CSS,
+     transform/opacity only, so it costs almost nothing in OBS. */
+  #ambient { position:absolute; inset:0; z-index:1; pointer-events:none; overflow:hidden; }
+  .amb-cloud { position:absolute; border-radius:50%; background:radial-gradient(ellipse at center, rgba(216,190,255,.20), rgba(216,190,255,0) 70%); filter:blur(2px); animation:cloudDrift linear infinite; }
+  @keyframes cloudDrift { from{ transform:translateX(-340px); } to{ transform:translateX(1420px); } }
+  .amb-star { position:absolute; color:#fff; text-shadow:0 0 10px #fff, 0 0 18px #ffd700; animation:starTwinkle 2.8s ease-in-out infinite; }
+  @keyframes starTwinkle { 0%,100%{ opacity:.25; transform:scale(.7); } 50%{ opacity:1; transform:scale(1.15); } }
+  #moonGlow { position:absolute; right:30px; top:90px; width:320px; height:320px; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,236,170,.34), rgba(255,236,170,.12) 45%, transparent 70%);
+    animation:moonPulse 5s ease-in-out infinite; }
+  @keyframes moonPulse { 0%,100%{ opacity:.75; } 50%{ opacity:1; } }
+  /* ---------- round 6: winter snowfall (config backgrounds.snow) ---------- */
+  /* Flakes fall in front of the sky but behind the tower / characters /
+     panels (z-index 2): visible in the open sky, never covering text.
+     Built by JS (buildSnow) — ~26 tiny ❄ spans, transform-only animation. */
+  #snowfall { position:absolute; inset:0; z-index:2; pointer-events:none; overflow:hidden; }
+  .flake { position:absolute; top:-40px; color:#fff; text-shadow:0 0 8px rgba(255,255,255,.8);
+    animation:snowFall linear infinite; will-change:transform; }
+  @keyframes snowFall {
+    0%{ transform:translate(0,-40px) rotate(0deg); opacity:0; }
+    8%{ opacity:.9; }
+    92%{ opacity:.9; }
+    100%{ transform:translate(var(--sway,30px),1980px) rotate(240deg); opacity:0; } }
+
+  /* ---------- header ---------- */
+  #header { position:relative; padding:20px 30px 0; z-index:5; }
+  #brandRow { display:flex; align-items:center; gap:18px; }
+  #logo { width:88px; height:88px; border-radius:50%; border:4px solid var(--gold);
+    box-shadow:0 0 24px rgba(255,215,0,.65); object-fit:cover; background:var(--text); }
+  #titleBox { flex:1; }
+  #title { font-size:50px; font-weight:900; color:var(--text); letter-spacing:2px;
+    text-shadow:0 3px 0 var(--purple),0 6px 18px rgba(0,0,0,.5); line-height:1.05; }
+  #subtitle { font-size:24px; color:var(--text-soft); margin-top:4px; text-shadow:0 2px 6px rgba(0,0,0,.5); }
+  #soundBtn { width:64px; height:64px; font-size:36px; border-radius:50%; border:3px solid var(--text);
+    background:rgba(255,255,255,.18); color:var(--text); cursor:pointer; }
+  #goalBox { margin-top:14px; background:rgba(0,0,0,.38); border:3px solid rgba(255,255,255,.55);
+    border-radius:22px; padding:12px 18px 14px; }
+  #goalTop { display:flex; justify-content:space-between; align-items:baseline; }
+  #goalLabel { font-size:32px; font-weight:800; color:var(--gold); }
+  #goalNums { font-size:40px; font-weight:900; color:var(--text); }
+  #goalNums b { color:var(--gold); font-size:56px; }
+  #goalBarOuter { margin-top:10px; height:28px; border-radius:14px; background:rgba(255,255,255,.22);
+    overflow:hidden; border:2px solid rgba(255,255,255,.5); }
+  #goalBarFill { height:100%; width:0%; border-radius:15px;
+    background:var(--goal-gradient); transition:width .5s ease;
+    box-shadow:0 0 16px rgba(255,183,71,.8); }
+  #goalSub { margin-top:8px; font-size:23px; color:var(--text-soft); display:flex; justify-content:space-between; }
+  #comboPill { position:absolute; left:30px; top:460px; z-index:37; display:none;
+    font-size:34px; font-weight:900; color:var(--text); background:var(--combo-gradient);
+    border:3px solid var(--text); border-radius:999px; padding:10px 26px;
+    box-shadow:0 0 22px rgba(255,87,34,.9); animation:pulse .5s ease-in-out infinite alternate; }
+  #comboPill.golden { background:var(--combo-gold-gradient); color:#5b3a00;
+    box-shadow:0 0 26px rgba(255,215,0,.95); }
+  @keyframes pulse { from{transform:scale(1)} to{transform:scale(1.07)} }
+
+  /* ---------- tower zone ---------- */
+  #towerZone { position:relative; height:1120px; margin-top:6px; }
+  #ground { position:absolute; left:0; right:0; bottom:0; height:30px;
+    background:linear-gradient(180deg,#4a3566,#241631); border-top:4px solid #6b5390;
+    box-shadow:0 -4px 18px rgba(0,0,0,.5); }
+  #tower { position:absolute; bottom:40px; left:50%; transform:translateX(-50%);
+    width:470px; display:flex; flex-direction:column-reverse; align-items:center;
+    transform-origin:bottom center; animation:sway 2.6s ease-in-out infinite; }
+  @keyframes sway { 0%,100%{ transform:translateX(-50%) rotate(calc(var(--wobble,0.4deg) * -1)); }
+                    50%{ transform:translateX(-50%) rotate(var(--wobble,0.4deg)); } }
+  #tower.shake { animation:shake .45s ease; }
+  @keyframes shake { 0%,100%{transform:translateX(-50%) rotate(0)} 20%{transform:translateX(calc(-50% - 14px)) rotate(-2.4deg)}
+    40%{transform:translateX(calc(-50% + 12px)) rotate(2deg)} 60%{transform:translateX(calc(-50% - 8px)) rotate(-1.2deg)}
+    80%{transform:translateX(calc(-50% + 5px)) rotate(.6deg)} }
+  .block { width:380px; border-radius:9px; position:relative; flex:none;
+    background-image:var(--asset-brick-purple); background-size:100% 100%; background-repeat:no-repeat;
+    border:2px solid rgba(255,255,255,.65);
+    box-shadow:inset 0 3px 0 rgba(255,255,255,.3),inset 0 -6px 0 rgba(0,0,0,.18),0 3px 8px rgba(0,0,0,.35); }
+  /* gloss: bright top edge so each brick reads as a solid glossy block */
+  .block::after { content:""; position:absolute; inset:0; border-radius:7px; pointer-events:none;
+    background:linear-gradient(180deg,rgba(255,255,255,.30),rgba(255,255,255,0) 45%); }
+  /* 7-colour rotation (TikPlays-style) via hue-rotate on the purple texture;
+     white labels and achromatic shadows are unaffected by hue-rotate */
+  .block.c1 { filter:hue-rotate(-55deg) saturate(1.15); }
+  .block.c2 { filter:hue-rotate(55deg) saturate(1.15); }
+  .block.c3 { filter:hue-rotate(-115deg) saturate(1.15); }
+  .block.c4 { filter:hue-rotate(115deg) saturate(1.15); }
+  .block.c5 { filter:hue-rotate(95deg) saturate(1.15); }
+  .block.golden { background-image:var(--asset-brick-gold);
+    border-color:#fff3b0; box-shadow:inset 0 3px 0 rgba(255,255,255,.4),inset 0 -6px 0 rgba(180,120,0,.35),0 0 22px rgba(255,215,0,.85); }
+  .block.golden::before { content:"★"; position:absolute; right:10px; top:50%; transform:translateY(-50%);
+    font-size:20px; color:#fff8d0; text-shadow:0 0 8px #ff9500; z-index:2; }
+  .block .fl { position:absolute; left:6px; top:50%; transform:translateY(-50%); z-index:2;
+    font-size:10px; font-weight:800; color:var(--text); background:rgba(0,0,0,.38);
+    padding:1px 5px; border-radius:6px; white-space:nowrap; }
+  .block .nm { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2;
+    font-size:12px; font-weight:800; color:var(--text); text-shadow:0 1px 3px rgba(0,0,0,.85);
+    white-space:nowrap; max-width:250px; overflow:hidden; text-overflow:ellipsis; }
+  .block.pop { animation:pop .28s ease; }
+  @keyframes pop { 0%{transform:scale(1.25); filter:brightness(1.6)} 100%{transform:scale(1)} }
+  .block.falling { animation:fall .7s ease-in forwards; z-index:20; }
+  @keyframes fall { to{ transform:translateY(260px) rotate(28deg); opacity:0; } }
+
+  /* witch lives outside #tower (absolute) so her action poses survive state rebuilds;
+     she sways with the tower via the same --wobble var */
+  #witchWrap { position:absolute; left:calc(50% - 100px); width:200px; z-index:5;
+    transition:bottom .45s ease; animation:swayWitch 2.6s ease-in-out infinite; }
+  @keyframes swayWitch { 0%,100%{ transform:rotate(calc(var(--wobble,0.4deg) * -1)); }
+                    50%{ transform:rotate(var(--wobble,0.4deg)); } }
+  #witch { width:100%; display:block; filter:drop-shadow(0 6px 10px rgba(0,0,0,.45));
+    animation:bob 2.2s ease-in-out infinite; }
+  @keyframes bob { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-9px) scale(1.02)} }
+  /* witch action poses (classes land on #witchWrap, overriding the sway) */
+  #witchWrap.act-wave { animation:witchWave .9s ease; }
+  @keyframes witchWave { 0%,100%{transform:rotate(0) translateY(0)} 30%{transform:rotate(-7deg) translateY(-10px)} 60%{transform:rotate(5deg) translateY(-4px)} }
+  #witchWrap.act-cast { animation:witchCast .55s ease 2; }
+  @keyframes witchCast { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-34px)} }
+  #witchWrap.act-cast #witch { filter:drop-shadow(0 0 22px rgba(255,215,0,.95)) drop-shadow(0 6px 10px rgba(0,0,0,.45)); }
+  #witchWrap.act-dance { animation:witchDance .55s ease-in-out infinite; }
+  @keyframes witchDance { 0%,100%{transform:translateY(0) rotate(-4deg)} 50%{transform:translateY(-26px) rotate(4deg)} }
+  #witchWrap.act-dizzy { animation:witchDizzy .8s ease-in-out infinite; }
+  @keyframes witchDizzy { 0%,100%{transform:rotate(-9deg)} 50%{transform:rotate(9deg)} }
+  #cat { position:absolute; left:52px; bottom:40px; width:170px; z-index:4;
+    filter:drop-shadow(0 5px 8px rgba(0,0,0,.4)); transition:transform .2s;
+    animation:catSway 3.4s ease-in-out infinite; }
+  /* gentle tail sway at rest — action classes (bounce/wave/jump/stretch)
+     override this animation while they run, then the sway resumes */
+  @keyframes catSway { 0%,100%{ transform:rotate(-1.6deg); } 50%{ transform:rotate(1.6deg); } }
+  #cat img { width:100%; display:block; }
+  #cat.bounce { animation:catBounce .5s ease; }
+  @keyframes catBounce { 0%{transform:translateY(0)} 40%{transform:translateY(-26px)} 100%{transform:translateY(0)} }
+  #cat .face-scared, #cat .face-heart { display:none; }
+  #cat.scared .face-scared { display:block; }
+  #cat.scared .face-happy { display:none; }
+  #cat.heart .face-heart { display:block; }
+  #cat.heart .face-happy, #cat.heart .face-scared { display:none; }
+  #cat.waving { animation:catWave 1.2s ease; }
+  @keyframes catWave { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-9deg)} 55%{transform:rotate(8deg)} 80%{transform:rotate(-4deg)} }
+  #cat.jumping { animation:catJump .6s ease 2; }
+  @keyframes catJump { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-64px)} }
+  #catCrown { position:absolute; left:105px; bottom:200px; z-index:6; font-size:64px; display:none;
+    filter:drop-shadow(0 3px 6px rgba(0,0,0,.5)); animation:crownBob 1s ease-in-out infinite; }
+  @keyframes crownBob { 0%,100%{transform:translateY(0) rotate(-4deg)} 50%{transform:translateY(-8px) rotate(4deg)} }
+  /* parked above the cat (tail points DOWN to her) so the witch — who rides
+     the tower top at x 440-640 — can never cover the bubble or its tail.
+     z-index 8 puts it above the witch (5) and the cat (4). */
+  #catSpeech { position:absolute; left:70px; bottom:236px; z-index:8; max-width:320px;
+    background:var(--text); color:var(--purple-deep); font-size:28px; font-weight:800; border-radius:20px;
+    padding:12px 18px; box-shadow:0 4px 14px rgba(0,0,0,.35); display:none; }
+  #catSpeech::after { content:""; position:absolute; left:56px; bottom:-12px;
+    border:12px solid transparent; border-top-color:var(--text); border-bottom:0; }
+  /* wrecking ball (swings in from top-right on a break) */
+  #wreckBall { position:absolute; top:0; right:20px; width:300px; z-index:25; display:none;
+    pointer-events:none; transform-origin:50% 0; filter:drop-shadow(0 8px 12px rgba(0,0,0,.5)); image-rendering:pixelated; }
+  #wreckBall.swing { display:block; animation:wreckSwing 1.15s ease; }
+  /* swing capped at -35 deg: at full left the ball (300px wide, centre ~300px
+     below the pivot) stops at x~=610 — clear of the left-aligned wreck card
+     (ends ~=580). The old -58 deg swing drove the ball across the gift card. */
+  @keyframes wreckSwing { 0%{transform:rotate(-35deg)} 30%{transform:rotate(12deg)}
+    55%{transform:rotate(-8deg)} 75%{transform:rotate(4deg)} 100%{transform:rotate(0)} }
+  #milestone { position:absolute; left:50%; top:60px; transform:translate(-50%,-50%) scale(.6);
+    z-index:30; font-size:54px; font-weight:900; color:var(--text); text-align:center; white-space:nowrap;
+    text-shadow:0 0 24px var(--pink),0 4px 0 var(--purple); opacity:0; pointer-events:none;
+    background:rgba(20,5,40,.55); padding:14px 30px; border-radius:999px;
+    border:3px solid rgba(255,255,255,.6); }
+  #milestone.show { animation:msShow 2.6s ease forwards; }
+  @keyframes msShow { 0%{opacity:0; transform:translate(-50%,-50%) scale(.6)}
+    15%{opacity:1; transform:translate(-50%,-50%) scale(1.08)}
+    25%{transform:translate(-50%,-50%) scale(1)} 80%{opacity:1} 100%{opacity:0; transform:translate(-50%,-50%) scale(1)} }
+
+  /* ---------- bottom panels ---------- */
+  #panels { position:relative; display:flex; gap:18px; padding:12px 30px 0; z-index:5; }
+  .card { flex:1; background:var(--panel-bg); border:3px solid rgba(255,255,255,.4);
+    border-radius:22px; padding:14px 16px; height:228px; overflow:hidden; }
+  .card h2 { font-size:30px; font-weight:900; color:var(--gold); margin-bottom:10px; }
+  .rankRow { display:flex; align-items:center; gap:10px; font-size:27px; color:var(--text);
+    padding:7px 0; border-bottom:1px dashed rgba(255,255,255,.25); }
+  .rankRow .medal { font-size:30px; width:44px; text-align:center; }
+  .rankRow .nm { flex:1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  .rankRow .dm { color:var(--gold); font-weight:800; }
+  .empty { font-size:26px; color:var(--text-muted); padding:12px 0; line-height:1.5; }
+  .feedRow { font-size:25px; color:var(--text); padding:6px 0; border-bottom:1px dashed rgba(255,255,255,.22);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; animation:feedIn .3s ease; }
+  @keyframes feedIn { from{opacity:0; transform:translateY(-8px)} to{opacity:1; transform:none} }
+  #footer { position:relative; margin:14px 30px 0; z-index:5; text-align:center;
+    background:var(--brand-gradient); border-radius:999px; padding:12px;
+    font-size:28px; font-weight:800; color:var(--text); letter-spacing:1px;
+    box-shadow:0 4px 18px rgba(255,93,162,.55); }
+
+  /* ---------- celebration ---------- */
+  #celebrate { position:absolute; inset:0; z-index:50; display:none; pointer-events:none;
+    background:radial-gradient(circle at 50% 40%,rgba(255,215,0,.28),transparent 60%),rgba(20,5,40,.30); }
+  #celebrate.show { display:block; }
+  #celebrate .big { position:absolute; left:50%; top:43%; transform:translate(-50%,-50%);
+    font-size:96px; font-weight:900; color:var(--gold); text-align:center; line-height:1.2;
+    text-shadow:0 0 34px #ff9500,0 5px 0 var(--purple); animation:bigPop .6s ease; white-space:nowrap; }
+  @keyframes bigPop { 0%{transform:translate(-50%,-50%) scale(.4); opacity:0} 100%{transform:translate(-50%,-50%) scale(1); opacity:1} }
+  #celebrate .sub { position:absolute; left:50%; top:57%; transform:translateX(-50%);
+    font-size:40px; font-weight:800; color:var(--text); text-shadow:0 2px 8px rgba(0,0,0,.6); white-space:nowrap; }
+  #newTowerBtn { position:absolute; left:50%; top:68%; transform:translateX(-50%);
+    pointer-events:auto; font-size:38px; font-weight:900; color:var(--purple-deep); background:var(--gold);
+    border:4px solid var(--text); border-radius:999px; padding:18px 44px; cursor:pointer;
+    box-shadow:0 0 30px rgba(255,215,0,.9); }
+  .confetti { position:absolute; top:-40px; width:16px; height:26px; border-radius:3px;
+    animation:confFall linear infinite; }
+  @keyframes confFall { to{ transform:translateY(2000px) rotate(720deg); } }
+  .confetti.mini { width:11px; height:18px; animation-name:confFallZone; }
+  @keyframes confFallZone { to{ transform:translateY(1150px) rotate(720deg); } }
+
+  /* ---------- TikPlays-style scene furniture ---------- */
+  #tower { z-index:2; }
+  #craneHook { position:absolute; left:238px; top:0; z-index:2; width:40px; height:170px;
+    transform-origin:50% 0; animation:hookSway 5s ease-in-out infinite; pointer-events:none; }
+  #craneHook .line { width:3px; height:118px; margin:0 auto; background:linear-gradient(180deg,#cfc4e8,#8e7cc3); }
+  #craneHook svg { display:block; margin:-4px auto 0; }
+  @keyframes hookSway { 0%,100%{transform:rotate(3deg)} 50%{transform:rotate(-3deg)} }
+  #sideProgress { position:absolute; left:8px; top:12px; bottom:52px; width:12px; z-index:3;
+    border-radius:6px; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.35); }
+  #sideFill { position:absolute; left:0; bottom:0; width:100%; height:0%; border-radius:5px;
+    background:linear-gradient(180deg,var(--pink),var(--orange),#58b368,#4fc3f7,#b388ff); transition:height .5s ease; }
+  #sideStar { position:absolute; left:50%; top:-24px; transform:translateX(-50%);
+    font-size:22px; color:var(--gold); text-shadow:0 0 10px #ff9500; }
+  #goalLine { position:absolute; left:0; right:0; z-index:1; display:none;
+    border-top:3px dashed rgba(255,215,0,.8); }
+  #goalLine span { position:absolute; left:24px; top:-17px; font-size:22px; font-weight:900;
+    color:#5b3a00; background:var(--gold); border:2px solid var(--text); border-radius:999px; padding:3px 14px; }
+  #howto { position:absolute; left:50%; top:300px; transform:translateX(-50%); width:620px; z-index:3;
+    background:rgba(15,5,35,.88); border:3px solid rgba(255,215,0,.55); border-radius:24px;
+    padding:14px 26px 16px; box-shadow:0 0 30px rgba(123,47,190,.5); display:none; }
+  #howto.show { display:block; }
+  /* docked side rules: once the tower grows, the card stays visible on the
+     left in compact form instead of hiding behind the "?" button. */
+  #howto.docked { left:24px; top:370px; transform:none; width:300px; padding:10px 14px 12px; }
+  #howto.docked h3 { font-size:20px; margin-bottom:4px; }
+  #howto.docked .row { font-size:16px; padding:3px 0; gap:8px; }
+  #howto.docked .row .ic { width:24px; height:24px; font-size:15px; border-radius:7px; }
+  #howto h3 { font-size:30px; font-weight:900; color:var(--gold); text-align:center; margin-bottom:6px; }
+  #howto .row { display:flex; align-items:center; gap:12px; font-size:22px; color:var(--text);
+    padding:4px 0; border-bottom:1px dashed rgba(255,255,255,.2); }
+  #howto .row:last-child { border-bottom:0; }
+  #howto .row span { flex:1; min-width:0; }
+  #howto .row b { margin-left:auto; color:var(--gold); font-weight:900; white-space:nowrap; }
+  #megaCard { position:absolute; left:50%; top:300px; transform:translateX(-50%); z-index:35; display:none;
+    background:#111; border:3px solid var(--gold); border-radius:16px; padding:16px 28px;
+    font-size:30px; font-weight:900; color:var(--gold); text-align:center; white-space:nowrap;
+    box-shadow:0 0 34px rgba(255,215,0,.7); }
+  #megaCard.show { display:block; animation:megaPop .35s ease; }
+  @keyframes megaPop { 0%{transform:translateX(-50%) scale(.7); opacity:0} 100%{transform:translateX(-50%) scale(1); opacity:1} }
+  #milestone.gold { border-color:var(--gold); text-shadow:0 0 24px #ff9500,0 4px 0 var(--purple); }
+  /* ---------- guest NPCs + climber ---------- */
+  #climber { position:absolute; right:186px; bottom:40px; width:110px; z-index:4;
+    filter:drop-shadow(0 4px 8px rgba(0,0,0,.45)); transition:bottom .6s ease; pointer-events:none; }
+  #climber img { width:100%; display:block; animation:climberBob 1.4s ease-in-out infinite; }
+  @keyframes climberBob { 0%,100%{transform:translateY(0) rotate(-2deg)} 50%{transform:translateY(-10px) rotate(2deg)} }
+  #fairy { position:absolute; left:-200px; top:45%; width:150px; z-index:28; display:none;
+    filter:drop-shadow(0 0 14px rgba(255,215,0,.7)); pointer-events:none; }
+  #fairy img { width:100%; display:block; }
+  #fairy.fly { display:block; animation:fairyFly 3.4s ease-in-out forwards; }
+  /* fly path stays in the LOWER sky band (top 64-78% of the tower zone):
+     clear of the rules card (top 300-680), the gift card (top 190-330),
+     the battle HUD (top 10-150) and the milestone banner (parked above the
+     witch). It may cross the witch / tower face — characters, not text.
+     First/last visible stops are 4% / 86% (fairy is 150px wide). */
+  @keyframes fairyFly {
+    0%{ left:-160px; top:74%; transform:rotate(-8deg); }
+    8%{ left:4%; top:66%; transform:rotate(6deg); }
+    25%{ left:24%; top:74%; transform:rotate(6deg); }
+    50%{ left:48%; top:64%; transform:rotate(-6deg); }
+    75%{ left:72%; top:76%; transform:rotate(6deg); }
+    92%{ left:86%; top:68%; transform:rotate(-6deg); }
+    100%{ left:112%; top:72%; transform:rotate(-8deg); } }
+  #pumpkin { position:absolute; right:-220px; width:170px; z-index:26; display:none;
+    filter:drop-shadow(0 0 12px rgba(255,150,50,.55)) drop-shadow(0 5px 8px rgba(0,0,0,.5)); pointer-events:none; }
+  #pumpkin img { width:100%; display:block; }
+  #pumpkin.push { display:block; animation:pumpkinPush 3.2s ease forwards; }
+  /* enters fast, then holds fully inside the frame (right:36px) until it leaves */
+  @keyframes pumpkinPush {
+    0%{ right:-180px; transform:rotate(0); }
+    10%{ right:36px; transform:rotate(-8deg); }
+    22%{ right:36px; transform:rotate(8deg); }
+    34%{ right:36px; transform:rotate(-8deg); }
+    46%{ right:36px; transform:rotate(6deg); }
+    58%{ right:36px; transform:rotate(0); }
+    85%{ right:36px; transform:rotate(0); }
+    100%{ right:-180px; transform:rotate(0); } }
+  /* right-anchored (never past the frame edge) and faded in only once the
+     pumpkin is parked — the say must not show mid-entrance, and must not
+     collide with the lucky cat's say (hidden while lucky is on, see below) */
+  #pumpkin .say { position:absolute; right:0; bottom:104%;
+    background:var(--text); color:var(--purple-deep); font-size:22px; font-weight:900; border-radius:14px;
+    padding:6px 12px; white-space:nowrap; box-shadow:0 3px 10px rgba(0,0,0,.35);
+    opacity:0; animation:pumpSay 3.2s ease forwards; }
+  @keyframes pumpSay { 0%,12%{opacity:0} 18%,88%{opacity:1} 100%{opacity:1} }
+  #stage.luckyOn #pumpkin .say { display:none; }
+  /* climber tag shifts left while the pumpkin is parked, so the pumpkin
+     (right:36px) never covers the tag's right end */
+  #stage.pumpkinOn #climberTag { right:340px; }
+  /* ---------- floating feedback layer (above guest NPCs so labels stay readable) ---------- */
+  #fxLayer { position:absolute; inset:0; z-index:31; pointer-events:none; overflow:visible; }
+  .floatTxt { position:absolute; transform:translate(-50%,-50%); font-size:40px; font-weight:900;
+    color:var(--gold); text-shadow:0 2px 0 rgba(0,0,0,.6),0 0 16px rgba(255,215,0,.7); animation:floatUp 1.6s ease-out forwards; white-space:nowrap;
+    background:rgba(20,8,38,.62); padding:4px 18px; border-radius:999px; border:2px solid rgba(255,255,255,.35); }
+  @keyframes floatUp { 0%{opacity:0; margin-top:0} 15%{opacity:1} 100%{opacity:0; margin-top:-110px} }
+  .burst { position:absolute; font-size:26px; animation:burstFly .9s ease-out forwards; }
+  @keyframes burstFly { 0%{opacity:1; transform:translate(0,0) scale(.6) rotate(0)} 100%{opacity:0; transform:translate(var(--dx),var(--dy)) scale(1.3) rotate(200deg)} }
+  .heartFloat { position:absolute; font-size:30px; animation:heartRise 1.4s ease-out forwards; }
+  @keyframes heartRise { 0%{opacity:0; transform:translateY(0) scale(.7)} 20%{opacity:1} 100%{opacity:0; transform:translateY(-120px) scale(1.2)} }
+  #dizzyStars { position:absolute; z-index:28; display:none; width:120px; height:120px;
+    margin:-60px 0 0 -60px; animation:dizzySpin 1s linear infinite; pointer-events:none; }
+  #dizzyStars span { position:absolute; font-size:26px; }
+  #dizzyStars span:nth-child(1){ left:44px; top:-6px; }
+  #dizzyStars span:nth-child(2){ left:96px; top:60px; }
+  #dizzyStars span:nth-child(3){ left:-8px; top:60px; }
+  @keyframes dizzySpin { to{ transform:rotate(360deg); } }
+
+  /* ---------- round 3: polished panels + new components ---------- */
+  #goalBox { display:flex; gap:16px; align-items:stretch;
+    background:var(--panel-gradient);
+    box-shadow:0 8px 24px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.25); }
+  #goalMain { flex:1; min-width:0; }
+  #goalSub { gap:16px; }
+  #goalSub span { white-space:nowrap; }
+  #bestLine { flex:none; }
+  #towerLine { max-width:62%; overflow:hidden; text-overflow:ellipsis; text-align:right; }
+  #statsRow { margin-top:8px; display:flex; gap:18px; font-size:22px; color:#e8ddff; font-weight:700; }
+  #statsRow .comboStat { color:var(--orange); display:none; }
+  #statsRow .comboStat.on { display:inline; animation:pulse .5s ease-in-out infinite alternate; }
+  #top1Card { flex:none; width:300px; background:linear-gradient(180deg,rgba(255,215,0,.22),rgba(255,215,0,.06));
+    border:3px solid rgba(255,215,0,.7); border-radius:18px; padding:10px 14px;
+    box-shadow:0 0 18px rgba(255,215,0,.35), inset 0 1px 0 rgba(255,255,255,.3); }
+  .top1Head { font-size:22px; font-weight:900; color:var(--gold); letter-spacing:1px; }
+  .top1Body { display:flex; align-items:center; gap:12px; margin-top:8px; }
+  .top1Av { width:64px; height:64px; flex:none; border-radius:50%; border:3px solid var(--text);
+    background:linear-gradient(135deg,var(--purple),var(--pink)); color:var(--text); font-size:34px; font-weight:900;
+    display:flex; align-items:center; justify-content:center; overflow:hidden; box-shadow:0 3px 10px rgba(0,0,0,.5); }
+  .top1Av img { width:100%; height:100%; object-fit:cover; display:block; }
+  .top1Info { display:flex; flex-direction:column; min-width:0; }
+  #top1Name { font-size:27px; font-weight:900; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
+  #top1Dm { font-size:23px; font-weight:800; color:var(--gold); }
+  /* polished cards */
+  .card { background:var(--panel-gradient);
+    border:3px solid rgba(255,255,255,.45);
+    box-shadow:0 8px 22px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.22); }
+  .card h2 { display:flex; align-items:center; gap:8px; padding-bottom:8px;
+    border-bottom:2px solid rgba(255,215,0,.35); }
+  .rankRow { padding:9px 2px; }
+  .rankRow .av, .feedRow .av { flex:none; width:44px; height:44px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+    font-size:24px; font-weight:900; color:var(--text); border:2px solid rgba(255,255,255,.8);
+    box-shadow:0 2px 8px rgba(0,0,0,.45); }
+  .rankRow .av img, .feedRow .av img { width:100%; height:100%; object-fit:cover; display:block; }
+  .feedRow { display:flex; align-items:flex-start; gap:10px; padding:8px 0; }
+  .feedRow .av { width:34px; height:34px; font-size:19px; border-width:2px; flex:none; margin-top:2px; }
+  .feedRow .ft { flex:1; min-width:0; font-size:24px; line-height:1.35; white-space:normal;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .feedRow .ft b { color:var(--gold); }
+  #footer { border:3px solid rgba(255,255,255,.5);
+    box-shadow:0 6px 20px rgba(255,93,162,.55), inset 0 1px 0 rgba(255,255,255,.35); }
+  #howto .row .ic { flex:none; width:36px; height:36px; border-radius:10px;
+    background:linear-gradient(135deg,var(--purple),var(--pink)); display:flex; align-items:center; justify-content:center;
+    font-size:21px; box-shadow:0 3px 8px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.35); }
+  /* battle HUD */
+  /* battle HUD: ONE compact line at the top of the zone (title + both score
+     bars + combo chip, ~52px tall). It must stay short: above ~40 floors the
+     witch's head rises to y~470, so the old multi-line HUD (240px) covered
+     her — first its explainer line, then the HUD itself. The 5s explainer
+     rides the tips ticker instead (see showBattleExplainer). */
+  #battleHud { position:absolute; left:50%; top:8px; transform:translateX(-50%); width:820px; z-index:31;
+    display:none; align-items:center; gap:10px; background:linear-gradient(180deg,rgba(40,8,60,.95),rgba(20,8,38,.95));
+    border:3px solid var(--red); border-radius:999px; padding:8px 20px;
+    box-shadow:0 0 28px rgba(255,82,82,.55), inset 0 1px 0 rgba(255,255,255,.25); }
+  #battleHud.show { display:flex; }
+  #battleHud .bt { font-size:28px; font-weight:900; color:var(--text); letter-spacing:1px; white-space:nowrap; }
+  #battleHud .bt b { color:var(--gold); font-size:32px; }
+  #battleHud .bvs { display:flex; align-items:center; gap:8px; font-size:24px; font-weight:900; flex:1; min-width:0; }
+  #battleHud .bvs .side { flex:none; white-space:nowrap; }
+  #battleHud .bvs .build { color:#7ee081; } #battleHud .bvs .wreck { color:#ff8a80; }
+  #battleHud .bbar { flex:1; min-width:60px; height:16px; border-radius:8px; background:rgba(255,255,255,.18); overflow:hidden; border:2px solid rgba(255,255,255,.4); }
+  #battleHud .bbar i { display:block; height:100%; }
+  #battleHud .bbar.build i { background:linear-gradient(90deg,#58b368,#a5d6a7); }
+  #battleHud .bbar.wreck i { background:linear-gradient(90deg,var(--red-dark),#ff8a80); }
+  /* combo state lives INSIDE the HUD during battle (the standalone pill
+     hides while the HUD is up — the two used to overlap) */
+  #battleHud .bcombo { display:none; font-size:24px; font-weight:900; color:var(--orange); white-space:nowrap; }
+  #battleHud .bcombo.on { display:inline-block; }
+  #battleHud .bcombo.golden { color:var(--gold); }
+  /* gift close-up card */
+  #giftCard { position:absolute; left:50%; top:190px; transform:translateX(-50%) scale(.7); z-index:36;
+    display:none; align-items:center; gap:16px; min-width:520px; max-width:860px;
+    background:linear-gradient(180deg,rgba(40,16,66,.97),rgba(20,8,38,.97));
+    border:3px solid rgba(255,215,0,.8); border-radius:24px; padding:16px 26px;
+    box-shadow:0 0 34px rgba(255,215,0,.6), inset 0 1px 0 rgba(255,255,255,.3); }
+  #giftCard.show { display:flex; animation:giftPop .3s ease forwards; }
+  @keyframes giftPop { from{ transform:translateX(-50%) scale(.7); opacity:0; } to{ transform:translateX(-50%) scale(1); opacity:1; } }
+  #giftCard.mid { border-color:var(--orange-deep); box-shadow:0 0 40px rgba(255,152,0,.8), inset 0 1px 0 rgba(255,255,255,.3); }
+  #giftCard.big { border-color:var(--gold); box-shadow:0 0 60px rgba(255,215,0,.95), inset 0 1px 0 rgba(255,255,255,.4);
+    background:linear-gradient(180deg,rgba(120,72,0,.97),rgba(40,16,66,.97)); }
+  #giftCard.wreck { border-color:var(--red); box-shadow:0 0 40px rgba(255,82,82,.8), inset 0 1px 0 rgba(255,255,255,.3);
+    /* wreck card parks LEFT (not centred) and capped at 560px wide: the
+       wrecking ball swings down the right side and must never cover the
+       card's text. Own pop animation (no translateX(-50%)). */
+    left:24px; transform:none; max-width:560px; }
+  #giftCard.wreck.show { animation:giftPopL .3s ease forwards; }
+  @keyframes giftPopL { from{ transform:scale(.7); opacity:0; } to{ transform:scale(1); opacity:1; } }
+  #giftCard .gav { width:84px; height:84px; flex:none; border-radius:50%; border:3px solid var(--text);
+    background:linear-gradient(135deg,var(--purple),var(--pink)); color:var(--text); font-size:40px; font-weight:900;
+    display:flex; align-items:center; justify-content:center; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,.5); }
+  #giftCard .gav img { width:100%; height:100%; object-fit:cover; display:block; }
+  #giftCard .ginfo { min-width:0; }
+  #giftCard .gname { font-size:34px; font-weight:900; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #giftCard .gdetail { font-size:28px; font-weight:800; color:var(--gold); margin-top:2px; white-space:nowrap; }
+  #giftCard .gdetail small { color:#e8ddff; font-size:24px; }
+  /* chat bubbles */
+  #chatLayer { position:absolute; left:0; right:0; bottom:120px; height:340px; z-index:29; pointer-events:none; overflow:hidden; }
+  .chatBubble { position:absolute; display:flex; align-items:center; gap:8px; max-width:430px;
+    background:rgba(255,255,255,.96); color:#3a1c5c; font-size:24px; font-weight:800;
+    border-radius:999px; padding:8px 16px 8px 8px; box-shadow:0 4px 14px rgba(0,0,0,.4);
+    animation:chatIn .25s ease, chatOut .5s ease 3.5s forwards; white-space:nowrap; }
+  .chatBubble .cav { width:40px; height:40px; flex:none; border-radius:50%; overflow:hidden;
+    background:linear-gradient(135deg,var(--purple),var(--pink)); color:var(--text); font-size:22px; font-weight:900;
+    display:flex; align-items:center; justify-content:center; border:2px solid var(--gold); }
+  .chatBubble .cav img { width:100%; height:100%; object-fit:cover; display:block; }
+  .chatBubble .cname { color:var(--purple); }
+  .chatBubble .ctext { overflow:hidden; text-overflow:ellipsis; }
+  @keyframes chatIn { from{ opacity:0; transform:translateY(14px) scale(.9); } to{ opacity:1; transform:none; } }
+  @keyframes chatOut { to{ opacity:0; transform:translateY(-10px); } }
+  /* lucky cat guest (enters only on big gifts / combo milestones, leaves after 8s) */
+  #lucky { position:absolute; right:-320px; bottom:40px; width:250px; z-index:27; display:none;
+    filter:drop-shadow(0 0 18px rgba(255,215,0,.8)) drop-shadow(0 6px 10px rgba(0,0,0,.5)); pointer-events:none; }
+  #lucky img { width:100%; display:block; }
+  /* right-anchored (never past the frame edge) and faded in only once the
+     cat is parked — mid-entrance the cat is half off-frame and its bubble
+     must not be. */
+  #lucky .say { position:absolute; right:0; bottom:102%;
+    background:var(--gold); color:#5b3a00; font-size:30px; font-weight:900; border-radius:999px;
+    padding:8px 18px; white-space:nowrap; box-shadow:0 4px 14px rgba(0,0,0,.4);
+    opacity:0; animation:luckySay 8s ease forwards; }
+  @keyframes luckySay { 0%,10%{opacity:0} 14%,88%{opacity:1} 100%{opacity:1} }
+  #lucky.enter { display:block; animation:luckyIn 8s ease forwards; }
+  @keyframes luckyIn {
+    0%{ right:-320px; transform:rotate(0); } 8%{ right:36px; transform:rotate(-4deg); }
+    14%{ right:36px; transform:rotate(4deg); } 20%{ right:36px; transform:rotate(0); }
+    82%{ right:36px; transform:rotate(0); opacity:1; }
+    100%{ right:-320px; transform:rotate(0); opacity:1; } }
+  /* climber tag: who the climber IS (current Top 1) */
+  #climberTag { position:absolute; right:150px; z-index:4; display:none; align-items:center; gap:8px;
+    background:rgba(20,8,38,.9); border:2px solid rgba(255,215,0,.7); border-radius:999px;
+    padding:6px 14px 6px 6px; box-shadow:0 4px 12px rgba(0,0,0,.5); transition:bottom .6s ease; pointer-events:none; }
+  #climberTag.show { display:flex; }
+  #climberTag .ctav { width:40px; height:40px; border-radius:50%; overflow:hidden; flex:none;
+    background:linear-gradient(135deg,var(--purple),var(--pink)); color:var(--text); font-size:20px; font-weight:900;
+    display:flex; align-items:center; justify-content:center; border:2px solid var(--text); }
+  #climberTag .ctav img { width:100%; height:100%; object-fit:cover; display:block; }
+  #climberTag .cname { font-size:24px; font-weight:900; color:var(--gold); white-space:nowrap; max-width:220px; overflow:hidden; text-overflow:ellipsis; }
+  #climber.waving img { animation:climberWave 1.5s ease; }
+  @keyframes climberWave { 0%,100%{ transform:translateY(0) rotate(-2deg); } 25%{ transform:translateY(-14px) rotate(-10deg); } 55%{ transform:translateY(-8px) rotate(10deg); } 80%{ transform:translateY(-12px) rotate(-6deg); } }
+  /* wreck drama: screen shake + shockwave ring + flash */
+  #stage.shake { animation:stageShake .45s ease; }
+  @keyframes stageShake { 0%,100%{ transform:translate(0,0); } 20%{ transform:translate(-12px,6px); } 40%{ transform:translate(10px,-6px); } 60%{ transform:translate(-8px,4px); } 80%{ transform:translate(6px,-3px); } }
+  #shockRing { position:absolute; left:50%; top:50%; width:60px; height:60px; z-index:26; display:none;
+    border:6px solid rgba(255,255,255,.9); border-radius:50%; transform:translate(-50%,-50%); pointer-events:none; }
+  #shockRing.go { display:block; animation:shock .7s ease-out forwards; }
+  @keyframes shock { from{ width:60px; height:60px; opacity:1; border-width:8px; } to{ width:900px; height:900px; opacity:0; border-width:2px; } }
+  #flash { position:absolute; inset:0; z-index:34; background:var(--text); opacity:0; pointer-events:none; }
+  /* witch kiss: on building gifts she zooms to the screen and kisses it */
+  #kissLayer { position:absolute; left:50%; top:42%; width:640px; height:640px; margin:-320px 0 0 -320px; z-index:36; display:none; pointer-events:none; }
+  #kissLayer img { width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 10px 24px rgba(0,0,0,.55)); }
+  #kissLayer.show { display:block; animation:kissZoom 1.8s ease forwards; }
+  @keyframes kissZoom { 0%{opacity:0; transform:scale(.12);} 18%{opacity:1; transform:scale(1);} 72%{opacity:1; transform:scale(1);} 100%{opacity:0; transform:scale(.12);} }
+  #kissMark { position:absolute; left:58%; top:56%; font-size:90px; opacity:0; transform:scale(.4) rotate(-12deg); }
+  #kissMark.show { opacity:1; transform:scale(1) rotate(-12deg); transition:transform .18s ease, opacity .18s ease; }
+  /* hype mode: the whole stage pulses hot + the tower glows (body.hype, set from state.hype) */
+  body.hype #stage { animation:hypePulse 1.1s ease-in-out infinite; }
+  @keyframes hypePulse { 0%,100%{ filter:brightness(1); } 50%{ filter:brightness(1.13) saturate(1.18); } }
+  body.hype #tower { filter:drop-shadow(0 0 18px rgba(255,150,50,.65)); }
+  /* witch humming idle (calm mode only) + persistent hype dance (class, not a timed action) */
+  #witchWrap.act-hum { animation:witchHum 1s ease-in-out 4; }
+  @keyframes witchHum { 0%,100%{ transform:translateY(0) rotate(0); } 50%{ transform:translateY(-8px) rotate(-2deg); } }
+  #witchWrap.dancing { animation:witchDance .55s ease-in-out infinite; }
+  .noteFloat { position:absolute; font-size:32px; font-weight:900; color:#ffd700; z-index:29; animation:noteUp 2s ease-out forwards; pointer-events:none; }
+  @keyframes noteUp { 0%{ opacity:0; transform:translateY(0); } 20%{ opacity:1; } 100%{ opacity:0; transform:translateY(-120px); } }
+  /* witch speech bubble (rides with her on #witchWrap, tail points DOWN to her) */
+  #witchSpeech { position:absolute; left:50%; bottom:calc(100% + 12px); transform:translateX(-50%); z-index:8;
+    min-width:180px; max-width:340px; background:var(--text); color:var(--purple-deep); font-size:28px; font-weight:800;
+    border-radius:20px; padding:12px 18px; box-shadow:0 4px 14px rgba(0,0,0,.35); display:none; text-align:center; }
+  #witchSpeech::after { content:""; position:absolute; left:50%; bottom:-12px; transform:translateX(-50%);
+    border:12px solid transparent; border-top-color:var(--text); border-bottom:0; }
+  #flash.go { animation:flashGo .45s ease; }
+  @keyframes flashGo { 0%{ opacity:0; } 15%{ opacity:.55; } 100%{ opacity:0; } }
+  .coin { position:absolute; font-size:30px; animation:coinFall 1.6s ease-in forwards; z-index:33; }
+  @keyframes coinFall { 0%{ opacity:0; transform:translateY(-30px) rotate(0); } 12%{ opacity:1; } 100%{ opacity:0; transform:translateY(700px) rotate(540deg); } }
+  .starRain { position:absolute; font-size:26px; animation:starFall 1.8s ease-in forwards; z-index:33; }
+  @keyframes starFall { 0%{ opacity:0; transform:translateY(-20px) scale(.6); } 15%{ opacity:1; } 100%{ opacity:0; transform:translateY(900px) scale(1.2) rotate(180deg); } }
+  .plane { position:absolute; font-size:52px; z-index:29; animation:planeFly 2.2s ease-in forwards; }
+  @keyframes planeFly { 0%{ left:-90px; top:70%; transform:rotate(8deg); opacity:0; } 12%{ opacity:1; } 100%{ left:110%; top:22%; transform:rotate(8deg); opacity:1; } }
+  .ribbon { position:absolute; left:-40%; width:140%; height:26px; z-index:29;
+    background:linear-gradient(90deg,transparent,var(--pink),var(--gold),#58b368,transparent);
+    animation:ribbonSweep 1.1s ease-in-out forwards; }
+  @keyframes ribbonSweep { from{ transform:translateY(0) rotate(-4deg); opacity:0; } 30%{ opacity:1; } to{ transform:translateY(160px) rotate(-4deg); opacity:0; } }
+  .zanTxt { position:absolute; font-size:44px; font-weight:900; color:#ff8fb8;
+    text-shadow:0 2px 0 rgba(0,0,0,.6),0 0 18px rgba(255,93,162,.8); animation:floatUp 1.5s ease-out forwards; z-index:29; }
+  /* witch yawn + cat stretch (idle + chat) */
+  #witchWrap.act-yawn { animation:witchYawn 2.5s ease; }
+  @keyframes witchYawn { 0%,100%{ transform:rotate(0) translateY(0); } 30%{ transform:rotate(-4deg) translateY(-6px); } 55%{ transform:rotate(3deg) translateY(-10px); } 75%{ transform:rotate(-2deg) translateY(-4px); } }
+  #cat.stretch { animation:catStretch 1.2s ease; }
+  @keyframes catStretch { 0%,100%{ transform:scale(1,1) translateY(0); } 40%{ transform:scale(.96,1.08) translateY(-8px); } 70%{ transform:scale(1.02,.96) translateY(0); } }
+  #simPanel input { font-size:26px; font-weight:700; color:var(--text); background:rgba(255,255,255,.14);
+    border:2px solid var(--text); border-radius:14px; padding:12px 16px; width:220px; }
+  #simPanel input::placeholder { color:var(--text-muted); }
+
+  /* ---------- round 4/5: rules button, tips ticker, price marquee ---------- */
+  /* Prices are NOT a scene element any more: no big price card in the middle
+     band (it collided with every effect). Prices live in the bottom marquee
+     (below), always scrolling, never covering the game. The How-to card keeps
+     the slot at top:300px for itself. */
+  /* "?" rules button: the rules card collapses to this once the tower grows */
+  #rulesBtn { position:absolute; left:24px; top:290px; z-index:32; width:64px; height:64px; display:none;
+    font-size:36px; font-weight:900; color:var(--purple-deep); background:var(--gold);
+    border:3px solid var(--text); border-radius:50%; cursor:pointer;
+    box-shadow:0 0 18px rgba(255,215,0,.7); }
+  #rulesBtn.show { display:block; }
+  /* tips ticker: one line above the footer, always running */
+  #ticker { position:relative; margin:8px 30px 0; z-index:5; height:46px; display:flex; align-items:center; gap:12px;
+    background:rgba(0,0,0,.38); border:2px solid rgba(255,215,0,.5); border-radius:999px; padding:0 22px;
+    font-size:26px; font-weight:800; color:var(--text-soft); overflow:hidden; white-space:nowrap; }
+  #ticker .tickIc { flex:none; font-size:26px; }
+  #tickerText { overflow:hidden; text-overflow:ellipsis; transition:opacity .3s ease; }
+  #tickerText.fade { opacity:0; }
+  /* price marquee: one continuously scrolling strip at the very bottom
+     (panels -> tips ticker -> marquee -> footer). Distinct from the tips
+     ticker: pink gradient + money-bag icon = prices; gold border + bulb = rules.
+     The track holds the content twice; -50% translate = one seamless loop. */
+  #priceMarquee { position:relative; margin:8px 30px 0; z-index:5; height:46px; display:none;
+    align-items:center; gap:12px; overflow:hidden;
+    background:linear-gradient(90deg,rgba(255,93,162,.30),rgba(123,47,190,.40));
+    border:2px solid rgba(255,93,162,.65); border-radius:999px; padding:0 22px;
+    font-size:26px; font-weight:800; color:#ffe9f6; }
+  #priceMarquee .mqIc { flex:none; font-size:26px; }
+  #priceMarquee .mqView { flex:1; min-width:0; overflow:hidden; }
+  #priceMarquee .mqTrack { display:inline-flex; white-space:nowrap; animation:mqScroll linear infinite; will-change:transform; }
+  #priceMarquee .mqTrack span { flex:none; }
+  @keyframes mqScroll { from{ transform:translateX(0); } to{ transform:translateX(-50%); } }
+  /* (battle explainer rides the tips ticker for 5s — the old standalone
+     banner parked on the witch above 40 floors, and the HUD is one line now) */
+
+  /* ---------- sim panel (demo only) ---------- */
+  #simPanel { position:absolute; left:0; right:0; bottom:0; z-index:60; display:none;
+    background:rgba(0,0,0,.82); border-top:3px solid var(--gold); padding:14px 18px 20px; }
+  #simPanel.show { display:block; }
+  #simPanel .row { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  #simPanel button { font-size:26px; font-weight:800; color:var(--text); background:var(--purple);
+    border:2px solid var(--text); border-radius:14px; padding:12px 16px; cursor:pointer; }
+  #simPanel button.gold { background:#b8860b; } #simPanel button.red { background:var(--red-dark); }
+  #simPanel button.green { background:var(--green); } #simPanel button.pink { background:var(--pink-dark); }
+  #simPanel .hint { text-align:center; color:var(--gold); font-size:22px; margin-top:10px; }
+  #demoTag { position:absolute; left:30px; bottom:18px; z-index:55; font-size:24px; font-weight:800;
+    color:#000; background:var(--gold); border-radius:999px; padding:6px 16px; display:none; }
+  #demoTag.show { display:block; }
+  #liveTag { position:absolute; right:30px; top:330px; z-index:6; font-size:28px; font-weight:900;
+    color:var(--text); background:var(--red-dark); border-radius:999px; padding:8px 20px; display:none; }
+  #liveTag.show { display:block; }
+</style>
+</head>
+<body>
+<div id="overlayFit">
+<div id="stage">
+  <!-- round 6 ambient: drifting clouds, twinkling stars, moon glow (always on);
+       snowfall (toggle: config backgrounds.snow) — both sit behind the game UI -->
+  <div id="ambient" aria-hidden="true">
+    <div id="moonGlow"></div>
+    <div class="amb-cloud" style="top:330px; width:380px; height:110px; animation-duration:85s; animation-delay:-20s;"></div>
+    <div class="amb-cloud" style="top:520px; width:300px; height:90px; animation-duration:105s; animation-delay:-60s;"></div>
+    <div class="amb-cloud" style="top:760px; width:430px; height:120px; animation-duration:120s; animation-delay:-90s;"></div>
+    <span class="amb-star" style="left:120px; top:310px; font-size:20px; animation-delay:0s;">✦</span>
+    <span class="amb-star" style="left:300px; top:420px; font-size:14px; animation-delay:.7s;">★</span>
+    <span class="amb-star" style="left:520px; top:340px; font-size:24px; animation-delay:1.3s;">✦</span>
+    <span class="amb-star" style="left:760px; top:470px; font-size:16px; animation-delay:.4s;">★</span>
+    <span class="amb-star" style="left:920px; top:360px; font-size:20px; animation-delay:1.9s;">✦</span>
+    <span class="amb-star" style="left:180px; top:620px; font-size:16px; animation-delay:2.2s;">★</span>
+    <span class="amb-star" style="left:640px; top:660px; font-size:22px; animation-delay:1s;">✦</span>
+    <span class="amb-star" style="left:880px; top:740px; font-size:14px; animation-delay:2.6s;">★</span>
+    <span class="amb-star" style="left:420px; top:820px; font-size:18px; animation-delay:.2s;">✦</span>
+    <span class="amb-star" style="left:980px; top:940px; font-size:16px; animation-delay:1.6s;">★</span>
+  </div>
+  <div id="snowfall" aria-hidden="true"></div>
+
+  <!-- header -->
+  <div id="header">
+    <div id="brandRow">
+      <img id="logo" data-asset="logo" alt="小魔女代儲">
+      <div id="titleBox">
+        <div id="title">小魔女蓋塔挑戰</div>
+        <div id="subtitle">🎮 觀眾送禮蓋塔 · 破壞球拆塔 · 達標開新塔</div>
+      </div>
+      <button id="soundBtn" title="聲音開關">🔊</button>
+    </div>
+    <div id="goalBox">
+      <div id="goalMain">
+        <div id="goalTop">
+          <span id="goalLabel">🎯 目標 <span id="goalTarget">50</span> 層</span>
+          <span id="goalNums">目前 <b id="curHeight">0</b> 層</span>
+        </div>
+        <div id="goalBarOuter"><div id="goalBarFill"></div></div>
+        <div id="goalSub"><span id="bestLine">🏆 最佳紀錄 0 層</span><span id="towerLine">第 1 座塔</span></div>
+        <div id="statsRow">
+          <span id="likeStat">❤️ 0 讚</span>
+          <span id="comboStat" class="comboStat"></span>
+          <span id="shareStat">🔗 0 分享</span>
+          <span id="chatStat">💬 0 聊天</span>
+        </div>
+      </div>
+      <div id="top1Card">
+        <div class="top1Head">👑 目前第一名</div>
+        <div class="top1Body">
+          <span id="top1Av" class="top1Av">？</span>
+          <span class="top1Info"><span id="top1Name">尚無打賞者</span><span id="top1Dm">💎 0</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="comboPill"></div>
+  <div id="liveTag">🔴 LIVE</div>
+
+  <!-- tower zone -->
+  <div id="towerZone">
+    <div id="catSpeech"></div>
+    <img id="wreckBall" data-asset="wreckingBall" alt="">
+    <div id="tower"></div>
+    <!-- witch rides on top of the tower (absolute, so action poses survive rebuilds) -->
+    <span id="witchWrap" style="bottom:32px"><img id="witch" data-asset="witch" alt="小魔女"><div id="witchSpeech"></div></span>
+    <!-- white cat mascot -->
+    <div id="cat">
+      <img class="face-happy" data-asset="catHappy" alt="白貓">
+      <img class="face-scared" data-asset="catScared" alt="白貓嚇到">
+      <img class="face-heart" data-asset="catHeart" alt="白貓比愛心">
+    </div>
+    <div id="catCrown">👑</div>
+    <div id="milestone"></div>
+    <div id="craneHook"><div class="line"></div><svg width="34" height="52" viewBox="0 0 34 52"><path d="M17 0 V26 A10 10 0 1 1 7 26" fill="none" stroke="#e8ddff" stroke-width="5" stroke-linecap="round"/><circle cx="17" cy="5" r="4" fill="#ffd700"/></svg></div>
+    <div id="sideProgress"><span id="sideStar">★</span><div id="sideFill"></div></div>
+    <div id="goalLine"><span>🎯 GOAL 50 🏁</span></div>
+    <div id="howto">
+      <h3>🎮 How to Build · 玩法</h3>
+      <div class="row"><span class="ic">🎁</span><span>小禮物</span><b>蓋一層 +1</b></div>
+      <div class="row"><span class="ic">🌟</span><span>中禮物 ≥30 鑽</span><b>金磚 +3</b></div>
+      <div class="row"><span class="ic">💰</span><span>大禮物 ≥99 鑽</span><b>招財貓＋慶祝</b></div>
+      <div class="row"><span class="ic">💣</span><span>破壞球禮物</span><b>拆塔 −2</b></div>
+      <div class="row"><span class="ic">➕</span><span>追蹤 / 分享</span><b>各 +1 層</b></div>
+      <div class="row"><span class="ic">❤️</span><span>每 200 個讚</span><b>+1 層</b></div>
+      <div class="row"><span class="ic">💬</span><span>聊天：加油／拆／愛你／睡</span><b>NPC 有反應</b></div>
+      <div class="row"><span class="ic">⭐</span><span>讚連擊 50</span><b>星星雨</b></div>
+      <div class="row"><span class="ic">🔗</span><span>分享滿 5 次</span><b>白貓謝謝你</b></div>
+      <div class="row"><span class="ic">⚔️</span><span>衝塔 60 秒對戰</span><b>蓋塔 vs 拆塔</b></div>
+    </div>
+    <button id="rulesBtn" title="玩法規則">?</button>
+    <div id="megaCard"></div>
+    <div id="climber"><img data-asset="climber" alt="攀爬者"></div>
+    <div id="climberTag"><span class="ctav">？</span><span class="cname"></span></div>
+    <div id="fairy"><img data-asset="fairy" alt="星星精靈"></div>
+    <div id="pumpkin"><span class="say">嘿嘿嘿！</span><img data-asset="pumpkin" alt="搗蛋南瓜"></div>
+    <div id="lucky"><span class="say">發大財！💰</span><img data-asset="luckyCat" alt="招財貓"></div>
+    <div id="battleHud">
+      <span class="bt">⚔️ 衝塔 <b id="battleClock">60</b> 秒</span>
+      <div class="bvs">
+        <span class="side build">🧱 蓋塔 <span id="battleBuild">0</span></span>
+        <span class="bbar build"><i id="battleBuildBar" style="width:50%"></i></span>
+        <span class="side wreck"><span id="battleWreck">0</span> 拆塔 💣</span>
+        <span class="bbar wreck"><i id="battleWreckBar" style="width:50%"></i></span>
+      </div>
+      <span id="battleCombo" class="bcombo"></span>
+    </div>
+    <div id="giftCard"><span class="gav">？</span><span class="ginfo"><span class="gname"></span><span class="gdetail"></span></span></div>
+    <div id="chatLayer"></div>
+    <div id="shockRing"></div>
+    <div id="flash"></div>
+    <div id="fxLayer"></div>
+    <div id="kissLayer"><img data-asset="witchKiss" alt="" onerror="if(!this.dataset.fb){this.dataset.fb=1;this.src=document.getElementById('witch').src;}"><span id="kissMark">💋</span></div>
+    <div id="dizzyStars"><span>💫</span><span>⭐</span><span>✨</span></div>
+    <div id="ground"></div>
+  </div>
+
+  <!-- bottom panels -->
+  <div id="panels">
+    <div class="card">
+      <h2>🏆 打賞榜 TOP 3</h2>
+      <div id="board"></div>
+    </div>
+    <div class="card">
+      <h2>📜 最新動態</h2>
+      <div id="feed"></div>
+    </div>
+  </div>
+  <div id="ticker"><span class="tickIc">💡</span><span id="tickerText"></span></div>
+  <div id="priceMarquee"><span class="mqIc">💰</span><div class="mqView"><div class="mqTrack" id="mqTrack"></div></div></div>
+  <div id="footer"><!-- brand footer: rendered from CONFIG.brand (config.json) by JS below --></div>
+
+  <!-- goal celebration -->
+  <div id="celebrate">
+    <div class="big">🎉 達成目標！</div>
+    <div class="sub" id="celebSub"></div>
+    <button id="newTowerBtn">🔄 開新塔</button>
+  </div>
+
+  <div id="demoTag">DEMO 模擬模式</div>
+
+  <!-- sim panel -->
+  <div id="simPanel">
+    <div class="row">
+      <button class="pink" data-sim="gift:Rose">🧱 玫瑰 +1 (R)</button>
+      <button class="gold" data-sim="gift:Donut">🌟 金磚 +3 (G)</button>
+      <button class="red" data-sim="gift:Fireworks">💣 破壞球 −2 (B)</button>
+      <button data-sim="follow">➕ 追蹤 +1 (F)</button>
+      <button data-sim="share">🔗 分享 +1 (S)</button>
+      <button data-sim="like">❤️ 讚 +200 (L)</button>
+      <button data-sim="join">🚪 進場 +1 (J)</button>
+      <button class="gold" data-sim="battle">⚔️ 衝塔 60 秒 (T)</button>
+      <input id="chatInput" type="text" placeholder="聊天內容…（加油/拆/愛你/好睏）" maxlength="24">
+      <button class="pink" id="chatBtn">💬 送出聊天 (C)</button>
+      <button class="green" data-sim="reset">🔄 新塔 (X)</button>
+      <button class="gold" id="priceBtn">💰 下一價目 (P)</button>
+      <button id="musicBtn">🎵 音樂：開</button>
+      <button id="autoBtn">▶ 自動演示</button>
+    </div>
+    <div class="hint">模擬模式：按按鈕或鍵盤 R / G / B / F / S / L / J / T / C / X / P 測試 · ?demo=true 開啟</div>
+  </div>
+</div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+  // Keep the artwork in 1080x1920 logical pixels; fit it inside the actual source viewport.
+  const overlayFit = $('overlayFit');
+  let overlayScale = 1;
+  function fitOverlay() {
+    const w = document.documentElement.clientWidth;
+    const h = document.documentElement.clientHeight;
+    if (!w || !h) return;
+    overlayScale = Math.min(w / 1080, h / 1920);
+    overlayFit.style.left = ((w - 1080 * overlayScale) / 2) + 'px';
+    overlayFit.style.top = ((h - 1920 * overlayScale) / 2) + 'px';
+    overlayFit.style.transform = 'scale(' + overlayScale + ')';
+  }
+  fitOverlay();
+  window.addEventListener('resize', fitOverlay);
+  let demo = params.get('demo') === 'true';
+  let goal = 50, blockH = 20, lastBlocks = [], lastHeight = 0, lastMilestone = 0;
+  let CONFIG = { npcActions: {}, zones: [] };   // from /api/config (npcActions + zones)
+  // ---------- config-driven assets / brand (config.json `assets` + `brand`) ----------
+  // Every image path comes from CONFIG.assets. The fallbacks below are the
+  // current files, so a missing slot never breaks the overlay: swap an asset
+  // by replacing the file OR changing one config line. brickPurpleAlt is a
+  // spare texture (not used by the tower) — point brickPurple at it to use it.
+  const DEFAULT_ASSETS = {
+    logo:'assets/brand/logo.png', background:'assets/background/bg-night.jpg',
+    witch:'assets/characters/witch.png', witchCast:'assets/characters/witch-cast.png',
+    witchKiss:'assets/characters/witch-kiss.png',
+    // festive outfit fallbacks (the image tool declined bikini/sexy renders —
+    // see README): summer dress for building-gift hype, party dress for wreck-gift hype
+    witchBikini:'assets/characters/witch-bikini.png', witchSexy:'assets/characters/witch-sexy.png',
+    catHappy:'assets/characters/cat-happy.png', catScared:'assets/characters/cat-scared.png',
+    catHeart:'assets/characters/cat-heart.png', fairy:'assets/npcs/fairy.png',
+    pumpkin:'assets/npcs/pumpkin-devil.png', luckyCat:'assets/npcs/lucky-cat.png',
+    climber:'assets/npcs/climber.png', wreckingBall:'assets/props/wrecking-ball.png',
+    brickPurple:'assets/bricks/brick-purple.png', brickPurpleAlt:'assets/bricks/brick-purple-alt.png',
+    brickGold:'assets/bricks/brick-gold.png',
+  };
+  const DEFAULT_BRAND = { line:'@your-line-id', shop:'your-shop-name' };
+  function asset(slot) {
+    return ((CONFIG && CONFIG.assets) || {})[slot] || DEFAULT_ASSETS[slot] || '';
+  }
+  function applyAssets() {
+    const root = document.documentElement.style;
+    root.setProperty('--asset-background', 'url("' + asset('background') + '")');
+    root.setProperty('--asset-brick-purple', 'url("' + asset('brickPurple') + '")');
+    root.setProperty('--asset-brick-gold', 'url("' + asset('brickGold') + '")');
+    document.querySelectorAll('[data-asset]').forEach(el => {
+      const p = asset(el.getAttribute('data-asset'));
+      if (p) el.src = p;
+    });
+  }
+  function applyBrand() {
+    const b = Object.assign({}, DEFAULT_BRAND, (CONFIG && CONFIG.brand) || {});
+    const f = $('footer');
+    if (f) f.textContent = '💬 LINE：' + (b.line || '') + '　·　🛒 ' + (b.shop || '');
+  }
+  applyAssets(); applyBrand();
+  // ---------- round 6: winter snowfall (config backgrounds.snow, default on) ----------
+  // ~26 tiny ❄ spans, transform-only fall with a sideways drift; no images.
+  // The layer sits behind the tower/characters/panels, so flakes never cover
+  // text. Toggle is hot-reloaded: turning snow off hides the layer within 5s.
+  const SNOW_COUNT = 26;
+  let snowBuilt = false;
+  function buildSnow() {
+    const layer = $('snowfall');
+    if (!layer || snowBuilt) return;
+    snowBuilt = true;
+    for (let i = 0; i < SNOW_COUNT; i++) {
+      const f = document.createElement('span');
+      f.className = 'flake';
+      f.textContent = '❄';
+      f.style.left = (Math.random() * 1080) + 'px';
+      f.style.fontSize = (10 + Math.random() * 12).toFixed(0) + 'px';
+      f.style.opacity = (0.45 + Math.random() * 0.45).toFixed(2);
+      f.style.setProperty('--sway', ((Math.random() * 120) - 60).toFixed(0) + 'px');
+      f.style.animationDuration = (9 + Math.random() * 7).toFixed(1) + 's';
+      f.style.animationDelay = (-Math.random() * 16).toFixed(1) + 's';
+      layer.appendChild(f);
+    }
+  }
+  function syncSnow() {
+    const layer = $('snowfall');
+    if (!layer) return;
+    const on = !CONFIG || !CONFIG.backgrounds || CONFIG.backgrounds.snow !== false;
+    layer.style.display = on ? 'block' : 'none';
+    if (on) buildSnow();
+  }
+  syncSnow();
+  setInterval(syncSnow, 5000);
+  let lastEventAt = 0, firstState = true, lastZoneIdx = 0, lastWreckPrevHeight = 0;
+  let hypeActive = false, lastHypeOutfit = 'normal'; // overlay mirror of state.hype (set by applyHype)
+  let witchBusyUntil = 0;
+  let audioCtx = null, muted = false, autoTimer = null;
+  const towerEl = $('tower'), catEl = $('cat');
+
+  // ---------- gift emoji map (for floating tags) ----------
+  const GIFT_EMOJI = { 'Rose':'🌹', 'Finger Heart':'🫰', 'Donut':'🍩', 'Cake':'🍰',
+    'Fireworks':'🎆', '追蹤':'➕', '分享':'🔗', '按讚':'❤️', '進場':'🚪' };
+  function giftEmoji(g) { return GIFT_EMOJI[g] || '🧱'; }
+  function zoneFor(h) {
+    let z = (CONFIG.zones && CONFIG.zones[0]) || { name:'起始區', en:'STARTING ZONE', min:0 };
+    for (const zn of (CONFIG.zones || [])) if (h >= zn.min) z = zn;
+    return z;
+  }
+  function zoneIndex(h) {
+    let i = 0;
+    (CONFIG.zones || []).forEach((zn, idx) => { if (h >= zn.min) i = idx; });
+    return i;
+  }
+
+  // ---------- sounds (synthesized WebAudio; optional files via CONFIG.sounds) ----------
+  function ac() {
+    if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} }
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+  function tone(freq, dur, type, gain, delay) {
+    if (muted) return; const ctx = ac(); if (!ctx) return;
+    const t = ctx.currentTime + (delay || 0);
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type || 'triangle'; o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t);
+    // hype: SFX play louder and a touch faster
+    g.gain.exponentialRampToValueAtTime((gain || .18) * (hypeActive ? 1.4 : 1), t + .02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + dur * (hypeActive ? 0.85 : 1) + .05);
+  }
+  const synthBuild  = () => { tone(660,.12,'triangle',.2); tone(880,.14,'triangle',.16,.06); };
+  const synthGolden = () => { [523,659,784,1046].forEach((f,i)=>tone(f,.18,'triangle',.2,i*.07)); };
+  const synthBreak  = () => { tone(320,.4,'sawtooth',.16); tone(160,.45,'sawtooth',.14,.08); };
+  const synthMile   = () => { tone(784,.16,'sine',.2); tone(1046,.22,'sine',.2,.1); };
+  const synthGoal   = () => { [523,659,784,1046,1318].forEach((f,i)=>tone(f,.28,'triangle',.22,i*.11)); };
+  // short rising sting when hype triggers
+  const sHype = () => { [523, 659, 784, 1046].forEach((f, i) => tone(f, .16, 'triangle', .2, i * .06)); };
+  // Optional sound files (config.json `sounds`: build/golden/wreck/goal/milestone).
+  // Each value is an optional path like "assets/sounds/build.mp3"; empty or
+  // absent falls back to the synthesized sound above. No audio files ship
+  // with this repo — drop your own .mp3/.wav under public/assets/sounds/ and
+  // point the config key at it. A bad path plays nothing for that sound.
+  const sfxCache = {};
+  function playFileSound(name) {
+    if (muted) return true; // muted: silence, don't fall through to synth
+    const p = ((CONFIG && CONFIG.sounds) || {})[name];
+    if (!p) return false;
+    try {
+      let a = sfxCache[name];
+      if (!a) { a = new Audio(p); sfxCache[name] = a; }
+      a.currentTime = 0;
+      const pr = a.play();
+      if (pr && pr.catch) pr.catch(() => {});
+      return true;
+    } catch (e) { return false; }
+  }
+  const sBuild  = () => { if (!playFileSound('build')) synthBuild(); };
+  const sGolden = () => { if (!playFileSound('golden')) synthGolden(); };
+  const sBreak  = () => { if (!playFileSound('wreck')) synthBreak(); };
+  const sMile   = () => { if (!playFileSound('milestone')) synthMile(); };
+  const sGoal   = () => { if (!playFileSound('goal')) synthGoal(); };
+  document.addEventListener('pointerdown', ac, { once:false });
+  $('soundBtn').addEventListener('click', () => {
+    muted = !muted; $('soundBtn').textContent = muted ? '🔇' : '🔊'; setMusicMuted(); if (!muted) sBuild();
+  });
+
+  // ---------- background music (generative WebAudio; optional file via CONFIG.music.src) ----------
+  // Soft ASMR ambience: slow detuned pad + sparse music-box pentatonic notes
+  // + very soft filtered rain noise. Generative, so it loops forever and
+  // never repeats exactly. If config.music.src points at an audio file, a
+  // looping <audio> element plays that instead. Music has its own gain node
+  // (SFX use the shared tone() path) and respects both the sound mute and
+  // the sim-panel music toggle.
+  let musicGain = null, musicStarted = false, musicAudioEl = null, musicOff = false;
+  // music energy: 0 = calm ASMR base, 1 = full hype. The target flips with
+  // state.hype; the level lerps toward it so the change crossfades instead
+  // of jumping. It drives note tempo/gain, pad brightness, the hype pulse
+  // beat, and (for a file track) playbackRate + volume.
+  let musicEnergy = 0, musicEnergyTarget = 0, musicPadFilter = null;
+  const MUSIC_SCALE = [523.25, 587.33, 659.25, 783.99, 880.00, 1046.50, 1174.66, 1318.51];
+  const MUSIC_CHORDS = [[261.63, 329.63, 392.00], [220.00, 261.63, 329.63], [174.61, 220.00, 261.63], [196.00, 246.94, 293.66]];
+  function musicVolume() { const m = (CONFIG.music || {}); return (typeof m.volume === 'number' ? m.volume : 0.15); }
+  function musicGainVolume() { return musicVolume() * (1 + 0.3 * musicEnergy); }
+  function musicFileVolume() { return Math.min(1, musicVolume() * (1 + 0.25 * musicEnergy)); }
+  function setMusicMuted() {
+    const off = muted || musicOff;
+    if (musicGain && ac()) musicGain.gain.setTargetAtTime(off ? 0 : musicGainVolume(), ac().currentTime, 0.1);
+    if (musicAudioEl) { if (off) musicAudioEl.pause(); else if (musicStarted) musicAudioEl.play().catch(() => {}); }
+  }
+  function setMusicEnergy(on) { musicEnergyTarget = on ? 1 : 0; }
+  // lerp the energy level toward its target and apply it to every music parameter
+  setInterval(() => {
+    if (Math.abs(musicEnergy - musicEnergyTarget) < 0.02) { musicEnergy = musicEnergyTarget; return; }
+    musicEnergy += Math.sign(musicEnergyTarget - musicEnergy) * 0.1;
+    if (musicEnergy < 0) musicEnergy = 0;
+    if (musicEnergy > 1) musicEnergy = 1;
+    if (musicGain && ac() && !muted && !musicOff) musicGain.gain.setTargetAtTime(musicGainVolume(), ac().currentTime, 0.3);
+    if (musicPadFilter && ac()) musicPadFilter.frequency.setTargetAtTime(750 + 650 * musicEnergy, ac().currentTime, 0.3);
+    if (musicAudioEl) { try { musicAudioEl.playbackRate = 1 + 0.1 * musicEnergy; musicAudioEl.volume = musicFileVolume(); } catch (e) {} }
+  }, 400);
+  function startMusic() {
+    if (musicStarted || !CONFIG.music) return;
+    const m = CONFIG.music;
+    if (m.enabled === false) return;
+    if (m.src) {
+      try {
+        if (!musicAudioEl) { musicAudioEl = new Audio(m.src); musicAudioEl.loop = true; }
+        musicAudioEl.volume = musicFileVolume();
+        musicAudioEl.playbackRate = 1 + 0.1 * musicEnergy;
+        const pr = musicAudioEl.play();
+        if (pr && pr.catch) pr.catch(() => {});
+        musicStarted = true;
+      } catch (e) { /* missing file: stay silent, never crash */ }
+      return;
+    }
+    const ctx = ac(); if (!ctx) return;
+    if (ctx.state === 'suspended') { ctx.resume().catch(() => {}); return; }
+    try {
+      musicGain = ctx.createGain();
+      musicGain.gain.setValueAtTime((muted || musicOff) ? 0 : musicGainVolume(), ctx.currentTime);
+      musicGain.connect(ctx.destination);
+      startPad(ctx); startRain(ctx); scheduleMusicNote(ctx);
+      musicStarted = true;
+    } catch (e) { /* audio unavailable: stay silent */ }
+  }
+  function startPad(ctx) {
+    const filt = ctx.createBiquadFilter(); filt.type = 'lowpass'; filt.frequency.value = 750 + 650 * musicEnergy;
+    musicPadFilter = filt;
+    filt.connect(musicGain);
+    let chordIdx = Math.floor(Math.random() * MUSIC_CHORDS.length);
+    let oscs = [];
+    const playChord = () => {
+      const now = ctx.currentTime;
+      oscs.forEach(o => { try { o.g.gain.linearRampToValueAtTime(0.0001, now + 2.5); o.o.stop(now + 2.6); } catch (e) {} });
+      oscs = [];
+      const chord = MUSIC_CHORDS[chordIdx % MUSIC_CHORDS.length]; chordIdx++;
+      chord.forEach((f, i) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = i === 0 ? 'sine' : 'triangle';
+        o.frequency.value = f; o.detune.value = (i - 1) * 4;
+        g.gain.setValueAtTime(0.0001, now);
+        g.gain.linearRampToValueAtTime(0.05, now + 2.5);
+        o.connect(g); g.connect(filt); o.start(now);
+        oscs.push({ o: o, g: g });
+      });
+    };
+    playChord();
+    setInterval(playChord, 8000);
+  }
+  function startRain(ctx) {
+    const len = ctx.sampleRate * 2, buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+    const filt = ctx.createBiquadFilter(); filt.type = 'lowpass'; filt.frequency.value = 1100;
+    const g = ctx.createGain(); g.gain.value = 0.018;
+    src.connect(filt); filt.connect(g); g.connect(musicGain); src.start();
+  }
+  function scheduleMusicNote(ctx) {
+    setTimeout(() => {
+      if (musicStarted && !muted && !musicOff) {
+        // hype: faster tempo + louder notes + a gentle driving pulse beat
+        const f = MUSIC_SCALE[Math.floor(Math.random() * MUSIC_SCALE.length)];
+        const now = ctx.currentTime;
+        const vol = 0.09 + 0.07 * musicEnergy;
+        [[1, vol], [2, vol * 0.33]].forEach(pair => {
+          const o = ctx.createOscillator(), g = ctx.createGain();
+          o.type = 'sine'; o.frequency.value = f * pair[0];
+          g.gain.setValueAtTime(0.0001, now);
+          g.gain.exponentialRampToValueAtTime(pair[1], now + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, now + 1.4);
+          o.connect(g); g.connect(musicGain); o.start(now); o.stop(now + 1.5);
+        });
+        if (musicEnergy > 0.5) {
+          const o = ctx.createOscillator(), g = ctx.createGain();
+          o.type = 'sine'; o.frequency.value = 110;
+          g.gain.setValueAtTime(0.0001, now);
+          g.gain.exponentialRampToValueAtTime(0.1 * musicEnergy, now + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+          o.connect(g); g.connect(musicGain); o.start(now); o.stop(now + 0.25);
+        }
+      }
+      scheduleMusicNote(ctx);
+    }, musicEnergy > 0.5 ? 700 + Math.random() * 900 : 1500 + Math.random() * 2500);
+  }
+  // Autoplay: browsers block audio until a gesture — try on load, keep
+  // retrying until the context runs, and resume on any pointer gesture.
+  setInterval(() => {
+    if (!musicStarted) { if (CONFIG.music) startMusic(); }
+    else if (musicGain && ac() && ac().state === 'suspended') ac().resume().catch(() => {});
+  }, 2000);
+  document.addEventListener('pointerdown', () => { startMusic(); });
+
+  // ---------- tower rendering ----------
+  function setBlockHeight() {
+    const zoneH = document.getElementById('towerZone').offsetHeight || 1120;
+    // Reserve ~230px at the top of the tower zone for the witch, so a full
+    // tower never pokes into the header.
+    blockH = Math.max(10, Math.min(34, Math.floor((zoneH - 230) / goal)));
+    // golden blocks are worth 3 layers, so they stay 3x tall — a flat reset
+    // here used to undo the tall render and the witch floated above the tower
+    document.querySelectorAll('.block').forEach(b => b.style.height = (blockH * (parseInt(b.dataset.layers || '1', 10) || 1)) + 'px');
+    // GOAL line: where the top block of a full tower will reach
+    const gl = $('goalLine');
+    gl.style.top = Math.max(30, zoneH - 40 - goal * blockH) + 'px';
+    gl.style.display = 'block';
+    gl.querySelector('span').textContent = `🎯 GOAL ${goal} 🏁`;
+  }
+  function wobbleFor(h) {
+    const deg = 0.35 + Math.min(1.3, (h / Math.max(1, goal)) * 1.3);
+    towerEl.style.setProperty('--wobble', deg.toFixed(2) + 'deg');
+    const ww = $('witchWrap'); if (ww) ww.style.setProperty('--wobble', deg.toFixed(2) + 'deg');
+  }
+  function catSay(text, ms) {
+    const el = $('catSpeech'); el.textContent = text; el.style.display = 'block';
+    clearTimeout(catSay._t); catSay._t = setTimeout(() => el.style.display = 'none', ms || 2600);
+  }
+  // witch speech bubble (chat replies + /api/say): rides with her on #witchWrap
+  function witchSay(text, ms) {
+    const el = $('witchSpeech'); if (!el) return;
+    el.textContent = text; el.style.display = 'block';
+    clearTimeout(witchSay._t); witchSay._t = setTimeout(() => { el.style.display = 'none'; }, ms || 4200);
+  }
+  // witch voice: play the TTS mp3 the server attached to the fx (best effort;
+  // autoplay may block it before any gesture — the bubble always shows)
+  function playSpeech(url) {
+    if (!url || muted) return;
+    try {
+      const a = new Audio(url);
+      a.volume = 0.9;
+      const pr = a.play();
+      if (pr && pr.catch) pr.catch(() => {});
+    } catch (e) { /* no audio: bubble only */ }
+  }
+  function catScared() {
+    catEl.classList.add('scared'); catEl.classList.remove('bounce');
+    setTimeout(() => catEl.classList.remove('scared'), 2200);
+  }
+  function catHappy() {
+    catEl.classList.remove('scared'); catEl.classList.add('bounce');
+    setTimeout(() => catEl.classList.remove('bounce'), 600);
+  }
+  function showWreckBall() {
+    const b = $('wreckBall');
+    b.classList.remove('swing'); void b.offsetWidth;
+    b.classList.add('swing');
+    setTimeout(() => b.classList.remove('swing'), 1250);
+  }
+  function bannerPos() {
+    // park the banner above the witch so it never covers her hat
+    const zoneH = document.getElementById('towerZone').offsetHeight || 1120;
+    const wrap = $('witchWrap');
+    const witchH = (wrap && wrap.offsetHeight) || 215;
+    const towerTop = zoneH - 40 - (state.height * blockH) - witchH;
+    return Math.max(24, towerTop - 116);
+  }
+  // ---------- milestone / zone / big-gift banner (single manager) ----------
+  // A new banner replaces the old one immediately, and the text is cleared
+  // when its window ends — so a still can never show a stale number.
+  let bannerTimer = null;
+  function showBanner(text, gold, topPx, ms) {
+    const el = $('milestone');
+    clearTimeout(bannerTimer);
+    lastBannerAt = Date.now();
+    el.style.top = (topPx != null ? topPx : bannerPos()) + 'px';
+    el.classList.toggle('gold', !!gold);
+    el.textContent = text;
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+    bannerTimer = setTimeout(() => { el.classList.remove('show'); el.textContent = ''; }, ms || 2600);
+  }
+  function hideBanner() {
+    clearTimeout(bannerTimer);
+    const el = $('milestone');
+    el.classList.remove('show'); el.textContent = '';
+  }
+  function showMilestone(m) {
+    showBanner(milestoneCopy(m), false, bannerPos(), 2600);
+    sMile(); catSay('喵～再高一點！');
+  }
+  function showZoneBanner(zone) {
+    showBanner(`☁️ ${zone.name}！ZONE REACHED`, true, bannerPos(), 2600);
+    spawnConfetti($('fxLayer'), 16, true, 0);
+    setTimeout(() => document.querySelectorAll('#fxLayer .confetti').forEach(n => n.remove()), 3200);
+    sMile();
+  }
+  function showMegaCard(by) {
+    const el = $('megaCard');
+    el.textContent = `🌟 ${by || '觀眾'} 送出 MEGA 金磚！+3 層`;
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+    clearTimeout(showMegaCard._t);
+    showMegaCard._t = setTimeout(() => el.classList.remove('show'), 2600);
+  }
+  function spawnConfetti(container, n, mini, topMin) {
+    const colors = ['#ffd700','#ff5da2','#7b2fbe','#58b368','#ff9800','#fff'];
+    for (let i = 0; i < n; i++) {
+      const d = document.createElement('div');
+      d.className = 'confetti' + (mini ? ' mini' : '');
+      d.style.left = Math.random() * 1080 + 'px';
+      if (mini) {
+        d.style.top = ((topMin || 0) + Math.random() * 60) + 'px';
+        d.style.animationIterationCount = '1';
+      }
+      d.style.background = colors[i % colors.length];
+      d.style.animationDuration = (2.2 + Math.random() * 2.2) + 's';
+      d.style.animationDelay = (Math.random() * 1.2) + 's';
+      container.appendChild(d);
+    }
+  }
+  function showCelebration(height) {
+    const c = $('celebrate');
+    $('celebSub').textContent = `第 ${state.towerNumber} 座塔蓋到 ${height} 層！最佳紀錄 ${state.best} 層`;
+    c.classList.add('show');
+    // confetti
+    document.querySelectorAll('#celebrate .confetti').forEach(n => n.remove());
+    spawnConfetti(c, 46);
+    sGoal();
+  }
+
+  // ---------- NPC actions (config-driven: CONFIG.npcActions[event] = [{npc, action, durationMs}]) ----------
+  function towerTopZone() {
+    const zoneH = document.getElementById('towerZone').offsetHeight || 1120;
+    return zoneH - 40 - state.height * blockH;
+  }
+  function witchPos() {
+    const zr = $('towerZone').getBoundingClientRect();
+    const wrap = $('witchWrap');
+    if (!wrap) return { x: 540, y: 300 };
+    const r = wrap.getBoundingClientRect();
+    return { x: (r.left - zr.left + r.width / 2) / overlayScale, y: (r.top - zr.top + r.height * 0.35) / overlayScale };
+  }
+  function catPos() {
+    const zr = $('towerZone').getBoundingClientRect();
+    const r = catEl.getBoundingClientRect();
+    return { x: (r.left - zr.left + r.width / 2) / overlayScale, y: (r.top - zr.top) / overlayScale + 30 };
+  }
+  function capFloats() {
+    // never let floating feedback pile up: keep at most 2 on screen
+    const all = Array.from(document.querySelectorAll('#fxLayer .floatTxt'));
+    while (all.length > 2) all.shift().remove();
+  }
+  function floatText(txt, color) {
+    const d = document.createElement('div');
+    d.className = 'floatTxt'; d.textContent = txt; d.style.color = color || '#ffd700';
+    d.style.left = '540px'; d.style.top = Math.max(60, towerTopZone() - 30) + 'px';
+    $('fxLayer').appendChild(d);
+    capFloats();
+    setTimeout(() => d.remove(), 1700);
+  }
+  function sparkleBurst(x, y, n) {
+    const layer = $('fxLayer');
+    const chars = ['✦','★','✧','✨'];
+    const cols = ['#ffd700','#ff9ff3','#fff','#ffb347'];
+    for (let i = 0; i < (n || 10); i++) {
+      const s = document.createElement('div');
+      s.className = 'burst'; s.textContent = chars[i % chars.length];
+      s.style.left = x + 'px'; s.style.top = y + 'px';
+      const ang = Math.random() * Math.PI * 2, dist = 60 + Math.random() * 110;
+      s.style.setProperty('--dx', Math.cos(ang) * dist + 'px');
+      s.style.setProperty('--dy', (Math.sin(ang) * dist - 40) + 'px');
+      s.style.color = cols[i % cols.length];
+      layer.appendChild(s);
+      setTimeout(() => s.remove(), 1000);
+    }
+  }
+  function setWitchAction(cls, ms) {
+    const w = $('witchWrap'); if (!w) return;
+    w.classList.remove('act-wave','act-cast','act-dance','act-dizzy','act-yawn','act-hum');
+    if (!cls) return;
+    void w.offsetWidth;
+    w.classList.add(cls);
+    clearTimeout(setWitchAction._t);
+    setWitchAction._t = setTimeout(() => w.classList.remove(cls), ms);
+    witchBusyUntil = Date.now() + ms;
+  }
+  function witchAction(action, ms) {
+    const img = $('witch'); if (!img) return;
+    if (action === 'wave') {
+      if (Date.now() < witchBusyUntil) return; // never interrupt a big action
+      setWitchAction('act-wave', ms);
+      const p = witchPos(); sparkleBurst(p.x + 40, p.y - 20, 3);
+    } else if (action === 'cast') {
+      const token = ++witchAction._castToken;
+      img.src = asset('witchCast');
+      setWitchAction('act-cast', ms);
+      const p = witchPos();
+      sparkleBurst(p.x, p.y - 60, 14);
+      setTimeout(() => { const q = witchPos(); sparkleBurst(q.x, q.y - 60, 10); }, 700);
+      setTimeout(() => { if (token === witchAction._castToken) img.src = currentWitchSrc(); }, ms);
+    } else if (action === 'dance') {
+      setWitchAction('act-dance', ms);
+      const p = witchPos();
+      sparkleBurst(p.x, p.y - 40, 12);
+      const iv = setInterval(() => { const q = witchPos(); sparkleBurst(q.x, q.y - 40, 5); }, 600);
+      setTimeout(() => clearInterval(iv), ms);
+    } else if (action === 'dizzy') {
+      setWitchAction('act-dizzy', ms);
+      const p = witchPos(); const ds = $('dizzyStars');
+      ds.style.left = p.x + 'px'; ds.style.top = (p.y - 60) + 'px'; ds.style.display = 'block';
+      setTimeout(() => { ds.style.display = 'none'; }, ms);
+    } else if (action === 'yawn') {
+      setWitchAction('act-yawn', ms);
+      const p = witchPos();
+      const d = document.createElement('div');
+      d.className = 'floatTxt'; d.textContent = '💤'; d.style.color = '#cdb4f6';
+      d.style.left = (p.x + 70) + 'px'; d.style.top = (p.y - 60) + 'px';
+      $('fxLayer').appendChild(d); capFloats();
+      setTimeout(() => d.remove(), 1700);
+    }
+  }
+  witchAction._castToken = 0;
+  // ---------- hype outfits: the witch's clothes follow the latest gift ----------
+  // build gift -> festive summer dress (bikini fallback) + dancing; wreck gift ->
+  // sparkly party dress (sexy fallback) + dancing; hype end -> normal clothes.
+  // The files are festive fallbacks — the image tool declined bikini/sexy renders.
+  function currentWitchSrc() {
+    if (lastHypeOutfit === 'bikini') return asset('witchBikini');
+    if (lastHypeOutfit === 'sexy') return asset('witchSexy');
+    return asset('witch');
+  }
+  function setWitchOutfit(outfit) {
+    const img = $('witch'), wrap = $('witchWrap');
+    if (!img || !wrap) return;
+    lastHypeOutfit = outfit || 'normal';
+    if (outfit === 'bikini' || outfit === 'sexy') {
+      img.src = currentWitchSrc();
+      wrap.classList.add('dancing');
+    } else {
+      wrap.classList.remove('dancing');
+      img.src = asset('witch');
+    }
+  }
+  function applyHype(h) {
+    const active = !!(h && h.active);
+    const outfit = (h && h.outfit) || 'normal';
+    document.body.classList.toggle('hype', active);
+    setMusicEnergy(active);
+    if (active && !hypeActive) {
+      // freshly triggered: rising sting + hot burst at the tower top
+      sHype();
+      const p = witchPos();
+      sparkleBurst(p.x, p.y - 60, 16);
+      floatText('🔥 HYPE！', '#ffb347');
+    }
+    if (outfit !== lastHypeOutfit) setWitchOutfit(outfit);
+    hypeActive = active;
+  }
+  function catAction(action, ms) {
+    if (action === 'heart') {
+      catEl.classList.add('heart');
+      const p = catPos();
+      for (let i = 0; i < 4; i++) {
+        const h = document.createElement('div');
+        h.className = 'heartFloat'; h.textContent = '💗';
+        h.style.left = (p.x - 40 + i * 26) + 'px'; h.style.top = (p.y - 10) + 'px';
+        h.style.animationDelay = (i * 0.15) + 's';
+        $('fxLayer').appendChild(h);
+        setTimeout(() => h.remove(), 1600 + i * 150);
+      }
+      setTimeout(() => catEl.classList.remove('heart'), ms);
+    } else if (action === 'jump') {
+      catEl.classList.remove('jumping'); void catEl.offsetWidth; catEl.classList.add('jumping');
+      setTimeout(() => catEl.classList.remove('jumping'), ms);
+    } else if (action === 'wave') {
+      catEl.classList.remove('waving'); void catEl.offsetWidth; catEl.classList.add('waving');
+      setTimeout(() => catEl.classList.remove('waving'), ms);
+    } else if (action === 'crown') {
+      const c = $('catCrown'); c.style.display = 'block';
+      const p = catPos(); sparkleBurst(p.x, p.y - 30, 8);
+      setTimeout(() => { c.style.display = 'none'; }, ms);
+    }
+  }
+  function fairyAction(action, ms) {
+    if (action !== 'flyby') return;
+    const f = $('fairy');
+    f.classList.remove('fly'); void f.offsetWidth; f.classList.add('fly');
+    clearTimeout(fairyAction._t);
+    fairyAction._t = setTimeout(() => f.classList.remove('fly'), ms);
+  }
+  function pumpkinAction(action, ms) {
+    if (action !== 'push') return;
+    const p = $('pumpkin');
+    // park at the tower top where the ball struck (height before removal)
+    p.style.bottom = Math.max(40, 40 + lastWreckPrevHeight * blockH - 20) + 'px';
+    // while parked, the climber tag shifts left so the pumpkin never covers it
+    $('stage').classList.add('pumpkinOn');
+    p.classList.remove('push'); void p.offsetWidth; p.classList.add('push');
+    clearTimeout(pumpkinAction._t);
+    pumpkinAction._t = setTimeout(() => { p.classList.remove('push'); $('stage').classList.remove('pumpkinOn'); }, ms);
+  }
+  function triggerNpc(kind, ev) {
+    let list = (CONFIG.npcActions && CONFIG.npcActions[kind]) || [];
+    // gift tiers: the NPC action is keyed by diamond value, not just event type
+    if ((kind === 'gift' || kind === 'golden') && ev && ev.diamonds != null) {
+      const tier = tierForDiamonds(ev.diamonds);
+      const tierList = (CONFIG.giftTiers && CONFIG.giftTiers.actions && CONFIG.giftTiers.actions[tier]) || [];
+      // a combo golden (small gift, golden block) keeps the golden NPC actions
+      if (tierList.length && (kind === 'gift' || tier !== 'small')) list = tierList;
+    }
+    list.forEach(a => {
+      const ms = a.durationMs || 2000;
+      if (a.npc === 'witch') witchAction(a.action, ms);
+      else if (a.npc === 'cat') catAction(a.action, ms);
+      else if (a.npc === 'fairy') fairyAction(a.action, ms);
+      else if (a.npc === 'pumpkin') pumpkinAction(a.action, ms);
+      else if (a.npc === 'lucky') luckyAction(ms);
+      else if (a.npc === 'climber') climberAction(a.action, ms);
+      else if (a.npc === 'star') { const p = witchPos(); sparkleBurst(p.x, p.y - 60, 12); }
+    });
+    // event-specific drama (beyond the config NPC list)
+    if (kind === 'wreck') { stageShake(); shockRingAt(540, Math.max(120, towerTopZone() - 60)); }
+    else if (kind === 'likeStreak') { starRain(); }
+    else if (kind === 'shareThanks') { catSay('感謝分享！喵～'); spawnConfetti($('fxLayer'), 10, true, 0); setTimeout(() => document.querySelectorAll('#fxLayer .confetti').forEach(n => n.remove()), 3200); }
+    else if (kind === 'chatTease') { showWreckBall(); }
+    else if (kind === 'battleWin' && ev) { showBattleBanner(ev.user, ev.gift); }
+  }
+
+  // ---------- round 3: tiers, fx, guests, battle, idle ----------
+  function tierForDiamonds(d) {
+    const tiers = (CONFIG.giftTiers && CONFIG.giftTiers.tiers) || [];
+    let name = 'small';
+    for (const t of tiers) if ((d || 0) >= (t.min || 0)) name = t.name;
+    return name;
+  }
+  function avColor(name) {
+    const cols = ['#7b2fbe','#c2185b','#2e7d32','#1565c0','#e65100','#00838f'];
+    let h = 0; for (const c of String(name || '')) h = (h * 31 + c.charCodeAt(0)) % 997;
+    return cols[h % cols.length];
+  }
+  function setAvatar(el, avatar, name) {
+    if (!el) return;
+    const initial = String(name || '觀').replace(/^[^\u4e00-\u9fffA-Za-z0-9]+/, '').charAt(0) || '觀';
+    if (avatar) {
+      el.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = avatar; img.alt = '';
+      img.onerror = () => { el.textContent = initial; el.style.background = `linear-gradient(135deg,${avColor(name)},#ff5da2)`; };
+      el.appendChild(img); el.style.background = '';
+    } else {
+      el.textContent = initial;
+      el.style.background = `linear-gradient(135deg,${avColor(name)},#ff5da2)`;
+    }
+  }
+  function stageShake() {
+    const st = $('stage');
+    st.classList.remove('shake'); void st.offsetWidth; st.classList.add('shake');
+    setTimeout(() => st.classList.remove('shake'), 500);
+  }
+  function shockRingAt(x, y) {
+    const r = $('shockRing');
+    r.style.left = x + 'px'; r.style.top = y + 'px';
+    r.classList.remove('go'); void r.offsetWidth; r.classList.add('go');
+    setTimeout(() => r.classList.remove('go'), 750);
+  }
+  function flashScreen() {
+    const f = $('flash');
+    f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
+  }
+  function spawnCoins(n) {
+    const layer = $('fxLayer');
+    for (let i = 0; i < n; i++) {
+      const c = document.createElement('div');
+      c.className = 'coin'; c.textContent = '🪙';
+      c.style.left = (60 + Math.random() * 960) + 'px';
+      c.style.top = (Math.random() * 120) + 'px';
+      c.style.animationDelay = (Math.random() * 0.7) + 's';
+      layer.appendChild(c);
+      setTimeout(() => c.remove(), 2600);
+    }
+  }
+  function starRain() {
+    const layer = $('fxLayer');
+    for (let i = 0; i < 22; i++) {
+      const s = document.createElement('div');
+      s.className = 'starRain'; s.textContent = ['✦','★','✧','✨'][i % 4];
+      s.style.left = (40 + Math.random() * 1000) + 'px';
+      s.style.top = (Math.random() * 80) + 'px';
+      s.style.animationDelay = (Math.random() * 0.6) + 's';
+      s.style.color = ['#ffd700','#ff9ff3','#fff','#ffb347'][i % 4];
+      layer.appendChild(s);
+      setTimeout(() => s.remove(), 2600);
+    }
+  }
+  let luckyOnUntil = 0;   // while the lucky cat is on screen, hide the climber tag
+  function luckyAction(ms) {
+    const l = $('lucky');
+    luckyOnUntil = Date.now() + (ms || 8000);
+    $('stage').classList.add('luckyOn'); // hides the pumpkin's say bubble while lucky is on
+    l.classList.remove('enter'); void l.offsetWidth; l.classList.add('enter');
+    clearTimeout(luckyAction._t);
+    luckyAction._t = setTimeout(() => {
+      l.classList.remove('enter');
+      $('stage').classList.remove('luckyOn');
+      if (state && state.topGifters && state.topGifters[0]) $('climberTag').classList.add('show');
+    }, ms || 8000);
+  }
+  function climberAction(action, ms) {
+    if (action !== 'wave') return;
+    const c = $('climber');
+    c.classList.remove('waving'); void c.offsetWidth; c.classList.add('waving');
+    setTimeout(() => c.classList.remove('waving'), ms || 1500);
+  }
+  function showGiftCard(fx) {
+    const card = $('giftCard');
+    const tier = fx.tier || 'small';
+    card.className = tier === 'big' ? 'big' : tier === 'mid' ? 'mid' : tier === 'wreck' ? 'wreck' : '';
+    setAvatar(card.querySelector('.gav'), fx.avatar, fx.user);
+    card.querySelector('.gname').textContent = fx.user || '觀眾';
+    const emoji = giftEmoji(fx.gift || '');
+    const floorsTxt = (fx.floors || 0) >= 0 ? `+${fx.floors} 層` : `${fx.floors} 層`;
+    card.querySelector('.gdetail').innerHTML = `${emoji} ${esc(fx.gift || '')} · ${floorsTxt} <small>💎 ${fx.diamonds || 0}</small>`;
+    card.classList.add('show');
+    if (fx.kiss) renderKiss(fx);
+    clearTimeout(showGiftCard._t);
+    showGiftCard._t = setTimeout(() => card.classList.remove('show'), tier === 'big' ? 3200 : tier === 'mid' ? 2600 : 1900);
+    // tier-scaled effects — every gift lands visibly within ~1s, never throttled
+    if (tier === 'mid') {
+      flashScreen();
+      spawnConfetti($('fxLayer'), 18, true, 0);
+      setTimeout(() => document.querySelectorAll('#fxLayer .confetti').forEach(n => n.remove()), 3200);
+      const p = witchPos(); sparkleBurst(p.x, p.y - 40, 12);
+    } else if (tier === 'big') {
+      flashScreen();
+      spawnCoins(16);
+      spawnConfetti($('stage'), 40);
+      setTimeout(() => document.querySelectorAll('#stage > .confetti').forEach(n => n.remove()), 5200);
+      showBanner(`💰 ${fx.user || '觀眾'} 豪擲 ${fx.diamonds || 99} 鑽！發大財！`, true, 120, 2600);
+      sGoal();
+    } else if (tier === 'wreck') {
+      stageShake();
+      shockRingAt(540, Math.max(120, towerTopZone() - 60));
+    }
+    // hype: every gift lands hotter — extra burst + confetti on top of the tier effects
+    if (document.body.classList.contains('hype')) {
+      const p = witchPos(); sparkleBurst(p.x, p.y - 40, 10);
+      spawnConfetti($('fxLayer'), 10, true, 0);
+      setTimeout(() => document.querySelectorAll('#fxLayer .confetti').forEach(n => n.remove()), 3200);
+    }
+  }
+  function showChatBubble(fx) {
+    const layer = $('chatLayer');
+    while (layer.children.length >= 3) layer.firstChild.remove();
+    const b = document.createElement('div');
+    b.className = 'chatBubble';
+    const initial = String(fx.user || '觀').replace(/^[^\u4e00-\u9fffA-Za-z0-9]+/, '').charAt(0) || '觀';
+    const av = fx.avatar
+      ? `<span class="cav"><img src="${esc(fx.avatar)}" alt="" onerror="this.outerHTML='${esc(initial)}'"></span>`
+      : `<span class="cav">${esc(initial)}</span>`;
+    b.innerHTML = `${av}<span class="cname">${esc(fx.user || '觀眾')}</span><span class="ctext">${esc(fx.text || '')}</span>`;
+    b.style.left = (20 + Math.random() * 560) + 'px';
+    b.style.bottom = (Math.floor(Math.random() * 3) * 96) + 'px';
+    layer.appendChild(b);
+    setTimeout(() => b.remove(), 4200);
+    // the witch talks back: her reply bubble + voice (if the fx carries them)
+    if (fx.reply) { witchSay(fx.reply); if (fx.audioUrl) playSpeech(fx.audioUrl); }
+  }
+  // Muse host hook: /api/say makes the witch speak on screen (bubble + voice)
+  function renderSay(fx) {
+    witchSay(fx.text || '');
+    if (fx.audioUrl) playSpeech(fx.audioUrl);
+  }
+  function renderLikeFx(fx) {
+    const layer = $('fxLayer');
+    const x = 80 + Math.random() * 920;
+    if (fx.variant === 'megaBurst') {
+      const p = witchPos();
+      sparkleBurst(p.x, p.y - 60, 26);
+      spawnConfetti(layer, 14, true, 0);
+      setTimeout(() => document.querySelectorAll('#fxLayer .confetti').forEach(n => n.remove()), 3200);
+      floatText('❤️ 讚數衝破！+1 層', '#ff8fb8');
+      return;
+    }
+    if (fx.variant === 'hearts') {
+      for (let i = 0; i < 3; i++) {
+        const h = document.createElement('div');
+        h.className = 'heartFloat'; h.textContent = ['❤️','💗','💖'][i % 3];
+        h.style.left = (x - 30 + i * 30) + 'px'; h.style.top = (700 + Math.random() * 200) + 'px';
+        h.style.animationDelay = (i * 0.12) + 's';
+        layer.appendChild(h);
+        setTimeout(() => h.remove(), 1700);
+      }
+    } else if (fx.variant === 'starburst') {
+      sparkleBurst(x, 700 + Math.random() * 200, 10);
+    } else if (fx.variant === 'sparkleRain') {
+      for (let i = 0; i < 8; i++) {
+        const s = document.createElement('div');
+        s.className = 'starRain'; s.textContent = ['✦','✧','✨'][i % 3];
+        s.style.left = (x - 60 + Math.random() * 120) + 'px'; s.style.top = (Math.random() * 60) + 'px';
+        s.style.animationDelay = (Math.random() * 0.4) + 's';
+        s.style.color = '#ffd700';
+        layer.appendChild(s);
+        setTimeout(() => s.remove(), 2400);
+      }
+    } else if (fx.variant === 'firework') {
+      sparkleBurst(x, 620 + Math.random() * 160, 14);
+      flashScreen();
+    } else { // 'zan'
+      const d = document.createElement('div');
+      d.className = 'zanTxt'; d.textContent = '讚';
+      d.style.left = x + 'px'; d.style.top = (640 + Math.random() * 220) + 'px';
+      layer.appendChild(d);
+      setTimeout(() => d.remove(), 1600);
+    }
+  }
+  function renderShareFx(fx) {
+    const layer = $('fxLayer');
+    if (fx.variant === 'plane') {
+      const p = document.createElement('div');
+      p.className = 'plane'; p.textContent = '✈️';
+      layer.appendChild(p);
+      setTimeout(() => p.remove(), 2400);
+    } else if (fx.variant === 'ribbon') {
+      const r = document.createElement('div');
+      r.className = 'ribbon'; r.style.top = (480 + Math.random() * 300) + 'px';
+      layer.appendChild(r);
+      setTimeout(() => r.remove(), 1300);
+    } else { // confettiCat
+      spawnConfetti(layer, 12, true, 0);
+      setTimeout(() => document.querySelectorAll('#fxLayer .confetti').forEach(n => n.remove()), 3200);
+      catSay('感謝分享！喵～');
+    }
+  }
+  // ---------- round 7: auto-build dopamine effects ----------
+  // Every auto-built floor fires one of six rotating effects (config
+  // fxPools.autoBuild, picked server-side — never the same twice in a row).
+  // Each variant pairs a particle effect with an NPC reaction and its own
+  // floating-label color + emoji. All effects stay in the sky/tower area
+  // (fxLayer) and never cover the goal bar, panels, or footer.
+  function renderAutoBuildFx(fx) {
+    const layer = $('fxLayer');
+    const p = witchPos();
+    const top = Math.max(120, towerTopZone() - 60);
+    const v = fx.variant || 'starBurst';
+    if (v === 'confettiPop') {
+      spawnConfetti(layer, 16, true, 0);
+      setTimeout(() => document.querySelectorAll('#fxLayer .confetti').forEach(n => n.remove()), 3200);
+      floatText('🎉 +1 層', '#ff9ff3');
+      witchAction('cast', 2400);
+    } else if (v === 'rainbowRain') {
+      for (let i = 0; i < 10; i++) {
+        const s = document.createElement('div');
+        s.className = 'starRain'; s.textContent = ['✦', '✧', '✨', '★'][i % 4];
+        s.style.left = (40 + Math.random() * 1000) + 'px'; s.style.top = (Math.random() * 60) + 'px';
+        s.style.animationDelay = (Math.random() * 0.5) + 's';
+        s.style.color = ['#ff5d5d', '#ffb347', '#7ee8a2', '#7ee8fa', '#c77dff', '#ff9ff3'][i % 6];
+        layer.appendChild(s);
+        setTimeout(() => s.remove(), 2600);
+      }
+      floatText('🌈 +1 層', '#7ee8fa');
+      fairyAction('flyby', 3400);
+    } else if (v === 'hearts') {
+      floatText('💖 +1 層', '#ff8fb8');
+      catAction('heart', 2000);
+    } else if (v === 'firework') {
+      sparkleBurst(120 + Math.random() * 840, 560 + Math.random() * 180, 14);
+      flashScreen();
+      floatText('🎆 +1 層', '#ffb347');
+      witchAction('dance', 2000);
+    } else if (v === 'sparkleWave') {
+      [180, 540, 900].forEach((x, i) => setTimeout(() => sparkleBurst(x, top + 30, 8), i * 250));
+      floatText('✨ +1 層', '#cdb4f6');
+      climberAction('wave', 1500);
+    } else { // 'starBurst' (and any unknown variant)
+      sparkleBurst(p.x, p.y - 40, 16);
+      floatText('⭐ +1 層', '#ffd700');
+      witchAction('wave', 900);
+    }
+  }
+  function renderWelcomeFx(fx) {
+    witchAction('wave', 1200);
+    floatText(fx.text || '👋 歡迎進來！', '#ffe9f6');
+  }
+  // ---------- witch kiss (building gifts only; the server gates the cooldown) ----------
+  function renderKiss(fx) {
+    const k = (CONFIG.kiss || {});
+    const hold = k.durationMs || 1500;
+    const layer = $('kissLayer'), mark = $('kissMark');
+    if (!layer) return;
+    layer.classList.remove('show'); void layer.offsetWidth; layer.classList.add('show');
+    setTimeout(() => { if (mark) mark.classList.add('show'); }, 500);
+    setTimeout(() => { floatText('啾～', '#ff8fb8'); sparkleBurst(540, 700, 10); }, 600);
+    setTimeout(() => { if (mark) mark.classList.remove('show'); }, hold + 300);
+    setTimeout(() => { layer.classList.remove('show'); }, hold + 400);
+  }
+  let lastFxId = 0;
+  function renderFxList(fxList) {
+    const fresh = (fxList || []).filter(f => f.id > lastFxId).sort((a, b) => a.id - b.id);
+    if (!fresh.length) return;
+    lastFxId = Math.max(...fresh.map(f => f.id));
+    fresh.forEach(fx => {
+      if (fx.kind === 'gift') showGiftCard(fx);
+      else if (fx.kind === 'like') renderLikeFx(fx);
+      else if (fx.kind === 'share') renderShareFx(fx);
+      else if (fx.kind === 'autoBuild') renderAutoBuildFx(fx);
+      else if (fx.kind === 'welcome') renderWelcomeFx(fx);
+      else if (fx.kind === 'chat') showChatBubble(fx);
+      else if (fx.kind === 'say') renderSay(fx);
+    });
+  }
+  // ---------- never dead air (House Crew) ----------
+  let lastActivityAt = Date.now();
+  let idleIdx = Math.floor(Math.random() * 6);
+  let idleLast = -1;
+  let idleNudgeUntil = 0, idleNudgeText = '';
+  const IDLE_ACTIONS = ['yawn', 'stretch', 'fairy', 'climber', 'wave', 'hum'];
+  function nextIdleAction() {
+    let i = (idleIdx + 1 + Math.floor(Math.random() * 2)) % IDLE_ACTIONS.length;
+    if (i === idleLast) i = (i + 1) % IDLE_ACTIONS.length;
+    idleIdx = i; idleLast = i;
+    return IDLE_ACTIONS[i];
+  }
+  function runIdleAction() {
+    if (!state) return;
+    const a = nextIdleAction();
+    if (a === 'yawn') { witchAction('yawn', 2500); floatText('💤', '#cdb4f6'); }
+    else if (a === 'stretch') { catEl.classList.remove('stretch'); void catEl.offsetWidth; catEl.classList.add('stretch'); setTimeout(() => catEl.classList.remove('stretch'), 1300); floatText('喵～', '#ffe9f6'); }
+    else if (a === 'fairy') fairyAction('flyby', 3400);
+    else if (a === 'climber') { climberAction('wave', 1500); floatText('👋', '#ffe9f6'); }
+    else if (a === 'wave') { witchAction('wave', 900); }
+    else if (a === 'hum') {
+      // humming idle: she sits on the tower singing along to the calm music.
+      // Calm mode only — never during hype (she dances there).
+      if (hypeActive) { witchAction('wave', 900); }
+      else {
+        setWitchAction('act-hum', 4000);
+        const p = witchPos();
+        ['♪', '♫', '♪'].forEach((n, i) => {
+          setTimeout(() => {
+            const d = document.createElement('div');
+            d.className = 'noteFloat'; d.textContent = n;
+            d.style.left = (p.x - 30 + i * 34) + 'px'; d.style.top = (p.y - 70) + 'px';
+            $('fxLayer').appendChild(d);
+            setTimeout(() => d.remove(), 2100);
+          }, i * 650);
+        });
+      }
+    }
+    const zi = zoneIndex(state.height);
+    const next = (CONFIG.zones || [])[zi + 1];
+    if (next) {
+      idleNudgeText = `再 ${Math.max(1, next.min - state.height)} 層到${next.name}`;
+      idleNudgeUntil = Date.now() + 4000;
+    }
+  }
+  // round 6: first idle action after ~15s of quiet (config idleTimeoutSeconds),
+  // then about one action every ~12s — the scene is never still for long.
+  let lastIdleActionAt = 0;
+  setInterval(() => {
+    const idleSec = (CONFIG.idleTimeoutSeconds || 30);
+    if (state && Date.now() - lastActivityAt > idleSec * 1000 && Date.now() - lastIdleActionAt >= 12000) {
+      lastIdleActionAt = Date.now();
+      runIdleAction();
+    }
+  }, 5000);
+  // ---------- round 6: auto-build countdown (server sends autoBuildNextIn) ----------
+  // While the room is idle, the tower line shows the fairy's next auto floor.
+  // The server re-sends the countdown with every state push; this 1s tick
+  // keeps the number live between pushes. Zone nudges still own the line
+  // for 4s after each idle action.
+  let autoBuildNextAt = 0;
+  setInterval(() => {
+    if (!state || state.celebrated || state.autoBuildNextIn == null) return;
+    if (Date.now() < idleNudgeUntil) return;
+    if (Date.now() - lastActivityAt <= (CONFIG.idleTimeoutSeconds || 15) * 1000) return;
+    const left = Math.max(0, Math.ceil((autoBuildNextAt - Date.now()) / 1000));
+    $('towerLine').textContent = `🧚 小精靈 ${left} 秒後幫忙蓋一層`;
+  }, 1000);
+  // ---------- battle HUD ----------
+  let lastBattle = null;
+  let lastBattleActive = false;
+  let battleExplainerTimer = null;
+  function showBattleExplainer() {
+    // the explainer rides the TIPS TICKER for 5s (bottom strip, above the
+    // footer): it can never cover the witch, the tower, or the HUD — the
+    // old standalone banner parked on her mid-section above 40 floors, and
+    // the HUD itself is too short now to hold the line.
+    clearTimeout(battleExplainerTimer);
+    tickerOverrideUntil = Date.now() + 5000;
+    const el = $('tickerText');
+    el.classList.add('fade');
+    setTimeout(() => { el.textContent = '⚔️ 衝塔 60 秒開戰！送禮蓋塔，破壞球拆塔，贏的那邊加冕'; el.classList.remove('fade'); }, 300);
+    battleExplainerTimer = setTimeout(() => { tickerOverrideUntil = 0; nextTip(); }, 5000);
+  }
+  function renderBattle(b) {
+    lastBattle = b || null;
+    const hud = $('battleHud');
+    if (!b || !b.active) { hud.classList.remove('show'); $('battleCombo').className = 'bcombo'; return; }
+    hud.classList.add('show');
+    const total = Math.max(1, (b.build || 0) + (b.wreck || 0));
+    $('battleBuild').textContent = b.build || 0;
+    $('battleWreck').textContent = b.wreck || 0;
+    $('battleBuildBar').style.width = Math.round(((b.build || 0) / total) * 100) + '%';
+    $('battleWreckBar').style.width = Math.round(((b.wreck || 0) / total) * 100) + '%';
+  }
+  setInterval(() => { // ticking countdown (state only arrives on events)
+    if (lastBattle && lastBattle.active) {
+      const left = Math.max(0, Math.ceil((lastBattle.endsAt - Date.now()) / 1000));
+      $('battleClock').textContent = left;
+    }
+  }, 500);
+  function showBattleBanner(name, side) {
+    showBanner(side === 'wreck' ? `⚔️ 拆塔派獲勝！👑 ${name} 加冕！` : `⚔️ 蓋塔派獲勝！👑 ${name} 加冕！`, true, 120, 3000);
+    sGoal();
+  }
+  // ---------- milestone copy rotation (never the same twice) ----------
+  let lastBannerAt = 0;   // a banner stays visible ~2.6s — labels park above it
+  let milestoneCopyIdx = Math.floor(Math.random() * 3);
+  let milestoneCopyLast = -1;
+  function milestoneCopy(m) {
+    const copies = (CONFIG.milestoneCopies && CONFIG.milestoneCopies.length) ? CONFIG.milestoneCopies : [`✨ {m} 層！小魔女越蓋越高！`];
+    let i = (milestoneCopyIdx + 1 + Math.floor(Math.random() * 2)) % copies.length;
+    if (i === milestoneCopyLast) i = (i + 1) % copies.length;
+    milestoneCopyIdx = i; milestoneCopyLast = i;
+    return copies[i].replace('{m}', m);
+  }
+
+  // ---------- round 4/5: rules slot + tips ticker + price marquee ----------
+  // The How-to card keeps the middle-band slot (top:300px) for itself: it
+  // shows big and centered while the tower is empty; once the tower grows
+  // it stays visible docked on the left in compact form (the "?" button
+  // still opens the big centered card). Prices are NOT a scene element any
+  // more — they scroll in the bottom marquee (#priceMarquee), built from
+  // prices.json + custom lines.
+  let manualRulesOpen = false;
+  function updateSlot() {
+    const howto = $('howto'), btn = $('rulesBtn');
+    if (state && state.celebrated) { howto.classList.remove('show'); howto.classList.remove('docked'); return; }
+    if (manualRulesOpen) {
+      howto.classList.add('show'); howto.classList.remove('docked'); btn.classList.add('show');
+      return;
+    }
+    btn.classList.toggle('show', state ? state.height > 0 : false);
+    if (!state || state.height === 0) { howto.classList.add('show'); howto.classList.remove('docked'); }
+    else { howto.classList.add('show'); howto.classList.add('docked'); }
+  }
+  // price marquee: content auto-built from prices.json (cheapest first,
+  // "截圖詢問" last) + customTickerLines + daily tickerLines + the LINE CTA,
+  // games joined by " ｜ ". Two identical spans in the track = one seamless -50% loop.
+  let PRICES = { games: [] };
+  function marqueeText() {
+    const sep = ((CONFIG && CONFIG.priceTicker) || {}).separator || ' · ';
+    const parts = [];
+    (PRICES.games || []).forEach(g => {
+      const items = (g.items || []).slice().sort((a, b) => {
+        const an = typeof a.price === 'number', bn = typeof b.price === 'number';
+        if (an && bn) return a.price - b.price;
+        if (an) return -1;
+        if (bn) return 1;
+        return 0;
+      });
+      const txt = items.map(it => (typeof it.price === 'number' ? `${it.name}${it.price}元` : `${it.name}${it.price}`)).join(sep);
+      if (txt) parts.push(`${g.name} ${txt}`);
+    });
+    ((CONFIG && CONFIG.customTickerLines) || []).forEach(l => { if (l) parts.push(String(l)); });
+    // daily rotation (from /api/config daily): after prices + custom lines
+    ((CONFIG && CONFIG.daily && CONFIG.daily.tickerLines) || []).forEach(l => { if (l) parts.push(String(l)); });
+    const line = ((CONFIG && CONFIG.brand) || {}).line || '';
+    if (line) parts.push(`詳情 LINE ${line}`);
+    return parts.join(' ｜ ');
+  }
+  // Hot update: re-fetch /api/prices + /api/config every 60s and rebuild
+  // the marquee ONLY when the text actually changed, so a price/config/
+  // daily edit appears on screen within 60s with no OBS refresh and no
+  // server restart — and a mid-scroll rebuild never restarts the scroll.
+  // A failed fetch keeps the last good marquee on screen.
+  let lastMarqueeText = null;
+  let marqueeTimer = null;
+  function refreshMarquee() {
+    const el = $('priceMarquee');
+    Promise.all([fetch('/api/prices').then(r => r.json()), fetch('/api/config').then(r => r.json())])
+      .then(([p, cfg]) => {
+        // config hot-reload (60s): brand/footer follows too — a brand edit
+        // lands on a running overlay without an OBS source refresh.
+        if (cfg) { CONFIG = cfg; applyBrand(); }
+        PRICES = p || { games: [] };
+        const cfgT = (CONFIG && CONFIG.priceTicker) || { enabled: true, speedSeconds: 30 };
+        const text = marqueeText();
+        if (!cfgT.enabled || !text) { el.style.display = 'none'; lastMarqueeText = null; return; }
+        if (text === lastMarqueeText) return; // unchanged: leave the scroll alone
+        lastMarqueeText = text;
+        el.style.display = 'flex';
+        const track = $('mqTrack');
+        track.innerHTML = '';
+        const s1 = document.createElement('span'); s1.textContent = text;
+        const s2 = document.createElement('span'); s2.textContent = text;
+        track.appendChild(s1); track.appendChild(s2);
+        track.style.animationDuration = ((cfgT.speedSeconds || 30)) + 's';
+      }).catch(() => { if (lastMarqueeText === null) el.style.display = 'none'; });
+  }
+  function initMarquee() {
+    refreshMarquee();
+    if (!marqueeTimer) marqueeTimer = setInterval(refreshMarquee, 60000);
+  }
+  // tips ticker: config list, ~8s, never the same twice in a row
+  let tipIdx = -1;
+  let tickerOverrideUntil = 0; // while set, the ticker shows an override (battle explainer)
+  function nextTip() {
+    if (Date.now() < tickerOverrideUntil) return; // explainer owns the ticker
+    // tips pool = config tips + today's daily tips (never the same twice in a row)
+    const tips = ((CONFIG && CONFIG.tips) || []).concat((CONFIG && CONFIG.daily && CONFIG.daily.tips) || []);
+    const el = $('tickerText');
+    if (!tips.length) { el.textContent = ''; return; }
+    let i = Math.floor(Math.random() * tips.length);
+    if (tips.length > 1 && i === tipIdx) i = (i + 1) % tips.length;
+    tipIdx = i;
+    el.classList.add('fade');
+    setTimeout(() => { el.textContent = tips[i]; el.classList.remove('fade'); }, 300);
+  }
+  function initTips() {
+    nextTip();
+    setInterval(nextTip, ((CONFIG && CONFIG.tipsIntervalSeconds) || 8) * 1000);
+  }
+
+  let state = null;
+  let freshEvents = [];
+  let lastTotals = { gifts: 0, likes: 0, shares: 0, chats: 0 };
+  function applyState(s) {
+    const prevBlocks = lastBlocks, prevHeight = lastHeight;
+    state = s; goal = s.goal || 50;
+    applyHype(s.hype); // hype outfit + music energy + stage pulse follow the server
+    setBlockHeight(); wobbleFor(s.height);
+    if (s.height < prevHeight) lastWreckPrevHeight = prevHeight;
+
+    // --- NPC events (config-driven, from the server event stream) ---
+    const isFirst = firstState;
+    if (isFirst) {
+      lastEventAt = Math.max(0, ...(s.events || []).map(e => e.at));
+      lastFxId = Math.max(0, ...(s.fx || []).map(f => f.id));
+      firstState = false;
+      lastZoneIdx = zoneIndex(s.height);
+      lastTotals = { gifts: s.totalGifts || 0, likes: s.totalLikes || 0, shares: s.totalShares || 0, chats: s.totalChats || 0 };
+    } else {
+      freshEvents = (s.events || []).filter(e => e.at > lastEventAt).sort((a, b) => a.at - b.at);
+      // 'golden' is handled via the added-blocks diff below (covers combo goldens too)
+      freshEvents.forEach(e => { if (e.kind !== 'golden') triggerNpc(e.kind, e); });
+      if (freshEvents.length) lastEventAt = Math.max(...freshEvents.map(e => e.at));
+    }
+    // free actions are first-class events: render their fx, and any fresh
+    // event / fx / count change counts as activity (resets the idle timer)
+    renderFxList(s.fx);
+    const hadReset = freshEvents.some(e => e.kind === 'reset');
+    const totalsChanged = (s.totalGifts || 0) !== lastTotals.gifts || (s.totalLikes || 0) !== lastTotals.likes
+      || (s.totalShares || 0) !== lastTotals.shares || (s.totalChats || 0) !== lastTotals.chats;
+    lastTotals = { gifts: s.totalGifts || 0, likes: s.totalLikes || 0, shares: s.totalShares || 0, chats: s.totalChats || 0 };
+    if (!isFirst && (freshEvents.length || totalsChanged || s.height !== prevHeight)) lastActivityAt = Date.now();
+
+    // --- blocks diff (only top changes) ---
+    const prevIds = new Set(prevBlocks.map(b => b.id));
+    const newIds = new Set(s.blocks.map(b => b.id));
+    const removed = prevBlocks.filter(b => !newIds.has(b.id));
+    const added = s.blocks.filter(b => !prevIds.has(b.id));
+
+    if (removed.length) {
+      if (hadReset) {
+        // new tower (reset): blocks just vanish — no wreck drama
+        towerEl.querySelectorAll('.block').forEach(n => n.remove());
+      } else {
+      // animate the top blocks falling, then remove them from the DOM
+      const nodes = Array.from(towerEl.querySelectorAll('.block'));
+      const falling = nodes.slice(-removed.length);
+      falling.forEach(n => {
+        const top = n.offsetTop;
+        n.style.position = 'absolute'; n.style.top = top + 'px'; n.style.left = '50%';
+        n.style.marginLeft = (-190) + 'px';
+        n.classList.add('falling');
+        setTimeout(() => n.remove(), 750);
+      });
+      towerEl.classList.remove('shake'); void towerEl.offsetWidth; towerEl.classList.add('shake');
+      sBreak(); catScared(); catSay('喵！塔被拆掉了！'); showWreckBall();
+      floatText('−' + removed.reduce((n, b) => n + (b.layers || 1), 0), '#ff5252');
+      }
+    }
+    // witch rides on top of the tower (absolute, outside #tower)
+    $('witchWrap').style.bottom = (40 + s.height * blockH - 8) + 'px';
+    added.forEach((b, i) => {
+      const d = document.createElement('div');
+      const idx = s.blocks.indexOf(b);
+      d.className = 'block pop' + (b.type === 'golden' ? ' golden' : ' c' + (idx % 6));
+      // a golden block is worth 3 layers, so it renders 3x tall — otherwise
+      // the tower's visual height falls behind the layer count and the witch
+      // (who rides height*blockH) floats above the tower top, up into the HUD
+      d.style.height = (blockH * (b.layers || 1)) + 'px';
+      d.dataset.id = b.id;
+      d.dataset.layers = b.layers || 1;
+      // slight left/right offset so the tower reads as hand-stacked, not machined
+      d.style.marginLeft = (((idx * 37) % 13) - 6) + 'px';
+      // per-block label: floor chip + gifter name (TikPlays-style attribution)
+      const fl = document.createElement('span');
+      fl.className = 'fl';
+      fl.textContent = (b.type === 'golden' && b.from !== b.to) ? `F${b.from}-${b.to}` : `F${b.to || b.from || ''}`;
+      d.appendChild(fl);
+      if (b.by) {
+        const nm = document.createElement('span');
+        nm.className = 'nm'; nm.textContent = b.by;
+        d.appendChild(nm);
+      }
+      towerEl.appendChild(d);
+      if (b.type === 'golden') sGolden(); else sBuild();
+      if (i === 0) catHappy();
+    });
+    // newest block: one floating gift tag (+N included), parked above the witch
+    const newest = added[added.length - 1];
+    if (newest) {
+      const layers = added.reduce((n, b) => n + (b.layers || 1), 0);
+      const isGold = added.some(b => b.type === 'golden');
+      const tag = document.createElement('div');
+      tag.className = 'floatTxt';
+      tag.style.fontSize = '26px';
+      tag.style.color = isGold ? '#ffd700' : '#fff';
+      tag.textContent = `${giftEmoji(newest.gift)} ${newest.by || '觀眾'} +${layers} · 第 ${newest.to} 層`;
+      tag.style.left = '540px';
+      // park the label above the milestone/zone banner when one fires this tick
+      // or is still animating (2.6s), so the banner never covers it
+      const willMilestone = s.height > prevHeight && !s.celebrated && Math.floor(s.height / 10) > Math.floor(prevHeight / 10);
+      const willZone = !isFirst && !willMilestone && s.height > prevHeight && zoneIndex(s.height) > lastZoneIdx && CONFIG.zones[zoneIndex(s.height)];
+      const bannerLive = (Date.now() - lastBannerAt < 2600) || willMilestone || willZone;
+      let labelTop = Math.max(60, towerTopZone() - 250);
+      if (bannerLive) {
+        const msEl = $('milestone');
+        const bTop = (willMilestone || willZone) ? bannerPos() : (msEl.style.top ? parseInt(msEl.style.top, 10) : bannerPos());
+        labelTop = Math.max(24, bTop - 60);
+      }
+      tag.style.top = labelTop + 'px';
+      $('fxLayer').appendChild(tag);
+      capFloats();
+      setTimeout(() => tag.remove(), 1700);
+    }
+    // golden block placed -> MEGA card + tier NPC actions (also covers combo goldens)
+    const goldBlock = added.find(b => b.type === 'golden');
+    if (goldBlock) {
+      showMegaCard(goldBlock.by);
+      const ev = freshEvents.find(e => (e.kind === 'golden' || e.kind === 'gift') && e.user === goldBlock.by)
+        || { user: goldBlock.by, gift: goldBlock.gift };
+      triggerNpc('golden', ev);
+    }
+
+    // --- header / goal bar ---
+    $('curHeight').textContent = s.height;
+    $('goalTarget').textContent = s.goal;
+    $('goalBarFill').style.width = Math.min(100, (s.height / s.goal) * 100) + '%';
+    $('bestLine').textContent = `🏆 最佳紀錄 ${s.best} 層`;
+    $('towerLine').textContent = `第 ${s.towerNumber} 座塔 · ${zoneFor(s.height).name}`;
+    if (Date.now() < idleNudgeUntil) $('towerLine').textContent = idleNudgeText;
+    if (s.autoBuildNextIn != null) autoBuildNextAt = Date.now() + s.autoBuildNextIn * 1000;
+
+    // --- stats row (like total + combo meter + share/chat counts) ---
+    $('likeStat').textContent = `❤️ ${(s.totalLikes || 0).toLocaleString()} 讚`;
+    const comboEl = $('comboStat');
+    if (s.likeCombo && s.likeCombo.active && s.likeCombo.count >= 5) {
+      comboEl.textContent = `🔥 連擊 x${s.likeCombo.count}`;
+      comboEl.classList.add('on');
+    } else comboEl.classList.remove('on');
+    $('shareStat').textContent = `🔗 ${(s.totalShares || 0)} 分享`;
+    $('chatStat').textContent = `💬 ${(s.totalChats || 0)} 聊天`;
+
+    // --- Top 1 spotlight + climber identity (climber IS the current Top 1) ---
+    const top1 = (s.topGifters && s.topGifters[0]) || null;
+    if (top1) {
+      setAvatar($('top1Av'), top1.avatar, top1.name);
+      $('top1Name').textContent = top1.name;
+      $('top1Dm').textContent = `💎 ${top1.diamonds}`;
+      const tag = $('climberTag');
+      setAvatar(tag.querySelector('.ctav'), top1.avatar, top1.name);
+      tag.querySelector('.cname').textContent = top1.name;
+      if (Date.now() > luckyOnUntil) tag.classList.add('show');
+      else tag.classList.remove('show');
+    } else {
+      $('top1Av').textContent = '？';
+      $('top1Name').textContent = '尚無打賞者';
+      $('top1Dm').textContent = '💎 0';
+      $('climberTag').classList.remove('show');
+    }
+    // --- battle HUD ---
+    renderBattle(s.battle);
+    if (s.battle && s.battle.active && !lastBattleActive) showBattleExplainer();
+    lastBattleActive = !!(s.battle && s.battle.active);
+
+    // --- combo ---
+    // during battle the combo state lives INSIDE the HUD (the standalone pill
+    // used to sit half under the HUD); otherwise the pill shows as before
+    const pill = $('comboPill');
+    const bcombo = $('battleCombo');
+    if (s.battle && s.battle.active) {
+      pill.style.display = 'none';
+      if (s.goldenNext) { bcombo.textContent = '🌟 金磚待命！下一層是金磚'; bcombo.className = 'bcombo on golden'; }
+      else if (s.combo >= 2) { bcombo.textContent = `🔥 連擊 x${s.combo}`; bcombo.className = 'bcombo on'; }
+      else bcombo.className = 'bcombo';
+    } else {
+      bcombo.className = 'bcombo';
+      if (s.celebrated) pill.style.display = 'none';
+      else if (s.goldenNext) { pill.style.display = 'block'; pill.classList.add('golden'); pill.textContent = '🌟 金磚待命！下一層是金磚'; }
+      else if (s.combo >= 2) { pill.style.display = 'block'; pill.classList.remove('golden'); pill.textContent = `🔥 連擊 x${s.combo}`; }
+      else pill.style.display = 'none';
+    }
+
+    // --- milestones (skip while the goal celebration is showing) ---
+    // Only the highest crossed milestone is shown — a jump of 9→25 shows
+    // "20 層", never a stale lower number. Skipped on first load: a tower
+    // that is already tall must not replay its past milestones.
+    const every = 10;
+    let milestoneShown = false;
+    if (!isFirst && s.height > prevHeight && !s.celebrated) {
+      const topCrossed = Math.floor(s.height / every) * every;
+      if (topCrossed > Math.floor(prevHeight / every) * every && topCrossed !== lastMilestone) {
+        lastMilestone = topCrossed; showMilestone(topCrossed); milestoneShown = true;
+      }
+    }
+    if (s.height < prevHeight) lastMilestone = Math.floor(s.height / every) * every;
+
+    // --- zones (TikPlays-style: new zone name + banner + confetti) ---
+    const zi = zoneIndex(s.height);
+    if (!isFirst && !milestoneShown && s.height > prevHeight && zi > lastZoneIdx && CONFIG.zones[zi]) showZoneBanner(CONFIG.zones[zi]);
+    lastZoneIdx = zi;
+
+    // --- how-to / price slot (empty tower rotates rules+prices; short tower shows prices) + side progress + climber ---
+    updateSlot();
+    $('sideFill').style.height = Math.min(100, (s.height / s.goal) * 100) + '%';
+    $('climber').style.bottom = (40 + Math.floor(s.height * blockH * 0.55)) + 'px';
+    $('climberTag').style.bottom = (40 + Math.floor(s.height * blockH * 0.55) + 128) + 'px';
+
+    // --- tower cleared (new tower): NPCs back to idle ---
+    if (s.blocks.length === 0 && prevBlocks.length > 0) {
+      const wi = $('witch'); if (wi) wi.src = currentWitchSrc();
+      // 'dancing' is owned by the hype outfit (setWitchOutfit), not by this
+      // reset: a wreck that zeroes the tower must NOT stop her hype dance
+      const ww = $('witchWrap'); if (ww) ww.classList.remove('act-wave','act-cast','act-dance','act-dizzy','act-yawn','act-hum');
+      catEl.classList.remove('scared','heart','waving','jumping');
+      $('catCrown').style.display = 'none';
+      $('fairy').classList.remove('fly');
+      $('pumpkin').classList.remove('push');
+      $('megaCard').classList.remove('show');
+      $('lucky').classList.remove('enter');
+      $('giftCard').classList.remove('show');
+      $('dizzyStars').style.display = 'none';
+      $('stage').classList.remove('luckyOn', 'pumpkinOn');
+      hideBanner();
+      manualRulesOpen = false;
+    }
+
+    // --- celebration ---
+    if (s.celebrated && !$('celebrate').classList.contains('show')) showCelebration(s.height);
+    if (!s.celebrated) $('celebrate').classList.remove('show');
+
+    // --- leaderboard (avatar + name + diamonds) ---
+    const board = $('board');
+    if (!s.topGifters.length) {
+      board.innerHTML = '<div class="empty">還沒有打賞者<br>送出第一個禮物，當第一名！👑</div>';
+    } else {
+      const medals = ['🥇','🥈','🥉'];
+      board.innerHTML = s.topGifters.map((g, i) => {
+        const initial = String(g.name || '觀').replace(/^[^\u4e00-\u9fffA-Za-z0-9]+/, '').charAt(0) || '觀';
+        const av = g.avatar ? `<img src="${esc(g.avatar)}" alt="" onerror="this.remove()">` : esc(initial);
+        return `<div class="rankRow"><span class="medal">${medals[i] || '🏅'}</span><span class="av" style="background:${avColor(g.name)}">${av}</span><span class="nm">${esc(g.name)}</span><span class="dm">💎 ${g.diamonds}</span></div>`;
+      }).join('');
+    }
+
+    // --- feed (designed activity log: avatar dot + name + action) ---
+    $('feed').innerHTML = s.feed.length
+      ? s.feed.map(f => {
+          const txt = f.text || '';
+          const stripped = txt.replace(/^[^\u4e00-\u9fffA-Za-z0-9]+/, '');
+          const initial = stripped.charAt(0) || '•';
+          const first = txt.split(' ')[0] || '';
+          const boldName = /[\u4e00-\u9fff]/.test(first) && first.length <= 8
+            ? `<b>${esc(first)}</b>${esc(txt.slice(first.length))}`
+            : esc(txt);
+          return `<div class="feedRow"><span class="av" style="background:${avColor(first || stripped)}">${esc(initial)}</span><span class="ft">${boldName}</span></div>`;
+        }).join('')
+      : '<div class="empty">等你來蓋第一層！🧱</div>';
+
+    // --- live tag ---
+    $('liveTag').classList.toggle('show', !!s.live);
+
+    lastBlocks = s.blocks.slice();
+    lastHeight = s.height;
+  }
+  function esc(t) { return String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // ---------- live updates ----------
+  let es = null;
+  function connectSSE() {
+    try {
+      es = new EventSource('/events');
+      es.onmessage = (e) => { try { applyState(JSON.parse(e.data)); } catch (_) {} };
+      es.onerror = () => { /* fall through to polling */ };
+    } catch (_) {}
+  }
+  connectSSE();
+  setInterval(() => { // polling fallback (also repairs a dead SSE)
+    if (!es || es.readyState === EventSource.CLOSED) {
+      fetch('/api/state').then(r => r.json()).then(applyState).catch(() => {});
+    }
+  }, 2000);
+
+  // ---------- sim mode ----------
+  const CHAT_SAMPLES = ['加油！','拆塔！','愛你！','好睏……','衝啊！','超可愛','晚安'];
+  function simChat(text) {
+    fetch('/api/sim', { method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ action:'chat', text, user:'測試觀眾' + Math.floor(Math.random() * 90 + 10) }) })
+      .then(r => r.json()).then(d => { if (d.state) applyState(d.state); }).catch(() => {});
+  }
+  function sim(action, gift) {
+    const body = { action };
+    if (gift) body.gift = gift;
+    body.user = '測試觀眾' + Math.floor(Math.random() * 90 + 10);
+    fetch('/api/sim', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
+      .then(r => r.json()).then(d => { if (d.state) applyState(d.state); })
+      .catch(() => {});
+  }
+  function resetTower() {
+    fetch('/api/reset', { method:'POST' }).then(r => r.json())
+      .then(d => { if (d.state) applyState(d.state); }).catch(() => {});
+  }
+  function enableDemo() {
+    demo = true;
+    $('simPanel').classList.add('show');
+    $('demoTag').classList.add('show');
+    document.querySelectorAll('#simPanel [data-sim]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const [action, gift] = btn.dataset.sim.split(':');
+        if (action === 'reset') resetTower(); else sim(action, gift);
+      });
+    });
+    $('chatBtn').addEventListener('click', () => {
+      const t = $('chatInput').value.trim() || CHAT_SAMPLES[Math.floor(Math.random() * CHAT_SAMPLES.length)];
+      simChat(t);
+      $('chatInput').value = '';
+    });
+    $('chatInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('chatBtn').click(); });
+    // "下一價目" advances the chat announcer queue (/api/announce) — the
+    // on-screen prices live in the bottom marquee now, not a card
+    $('priceBtn').addEventListener('click', () => sim('price'));
+    $('musicBtn').addEventListener('click', () => { musicOff = !musicOff; setMusicMuted(); $('musicBtn').textContent = musicOff ? '🎵 音樂：關' : '🎵 音樂：開'; });
+    document.addEventListener('keydown', (e) => {
+      if (e.target && e.target.tagName === 'INPUT') return; // don't fire shortcuts while typing chat
+      const k = e.key.toLowerCase();
+      if (k === 'r') sim('gift', 'Rose');
+      else if (k === 'g') sim('gift', 'Donut');
+      else if (k === 'b') sim('gift', 'Fireworks');
+      else if (k === 'f') sim('follow');
+      else if (k === 's') sim('share');
+      else if (k === 'l') sim('like');
+      else if (k === 'j') sim('join');
+      else if (k === 't') sim('battle');
+      else if (k === 'p') sim('price');
+      else if (k === 'c') simChat($('chatInput').value.trim() || CHAT_SAMPLES[Math.floor(Math.random() * CHAT_SAMPLES.length)]);
+      else if (k === 'x') resetTower();
+    });
+    // auto-demo: random events every ~1.4s (for testing / recording)
+    $('autoBtn').addEventListener('click', () => {
+      if (autoTimer) {
+        clearInterval(autoTimer); autoTimer = null;
+        $('autoBtn').textContent = '▶ 自動演示';
+        return;
+      }
+      $('autoBtn').textContent = '⏸ 停止演示';
+      const names = ['小明','阿花','小華','皮卡','喵喵','阿土','小美','大寶'];
+      autoTimer = setInterval(() => {
+        const r = Math.random();
+        const user = names[Math.floor(Math.random() * names.length)];
+        const body = { user };
+        if (r < .45) { body.action = 'gift'; body.gift = 'Rose'; }
+        else if (r < .58) { body.action = 'gift'; body.gift = 'Donut'; }
+        else if (r < .66) { body.action = 'gift'; body.gift = 'Fireworks'; }
+        else if (r < .74) { body.action = 'follow'; }
+        else if (r < .8) { body.action = 'share'; }
+        else if (r < .86) { body.action = 'like'; body.count = 200; }
+        else if (r < .94) { body.action = 'chat'; body.text = CHAT_SAMPLES[Math.floor(Math.random() * CHAT_SAMPLES.length)]; }
+        else { body.action = 'battle'; }
+        fetch('/api/sim', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
+          .then(resp => resp.json()).then(d => { if (d.state) applyState(d.state); }).catch(() => {});
+      }, 1400);
+    });
+  }
+  $('newTowerBtn').addEventListener('click', resetTower);
+  $('rulesBtn').addEventListener('click', () => { manualRulesOpen = !manualRulesOpen; updateSlot(); });
+  fetch('/api/config').then(r => r.json()).then(cfg => {
+    CONFIG = cfg;
+    applyAssets(); applyBrand();
+    initMarquee();
+    startMusic();
+    initTips();
+    updateSlot();
+    // the first SSE state can arrive before this fetch returns, so the zone
+    // label may have rendered with the empty default zones — refresh it now
+    if (state) $('towerLine').textContent = `第 ${state.towerNumber} 座塔 · ${zoneFor(state.height).name}`;
+    // an explicit ?demo= param wins over config.demo (so ?demo=false gives
+    // a clean preview even while config.demo=true); with no param the
+    // config value decides
+    if (demo || (!params.has('demo') && cfg.demo)) enableDemo();
+  }).catch(() => { if (demo) enableDemo(); });
+})();
+</script>
+</body>
+</html>
