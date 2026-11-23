@@ -1,0 +1,16 @@
+{
+  "name": "xiaomonyu-tower-game",
+  "version": "1.0.0",
+  "description": "Xiao Mo Nu gift tower game for TikTok LIVE (own code, no paid services)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "tiktok-live-connector": "^2.5.0",
+    "ws": "^8.23.0"
+  }
+}

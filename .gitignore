@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Runtime state (auto-generated at runtime, never commit)
+data.json
+
+# Logs
+*.log
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Raw source generations (green-screen originals + generation metadata).
+# These stay OUT of the public repo — only the finished, cleaned assets in
+# public/assets/ are published. See CUSTOMIZE.md.
+assets-raw/
+
+# Secrets / local env (never commit)
+.env
+.env.*
