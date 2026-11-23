@@ -406,9 +406,6 @@ npm start
 
 then open `http://localhost:3000/?demo=true`.
 
-> **License — still to choose:** this repo has no LICENSE file yet. The owner
-> still needs to pick one before publishing. Two common options: MIT — the
-> most permissive, anyone can use/modify/sell with attribution; Apache-2.0 —
-> like MIT, plus an explicit patent grant. (Also note: `package.json`
-> currently says `"license": "ISC"` from the initial scaffold — confirm or
-> change it to match the license you choose.)
+> **License:** MIT — see the `LICENSE` file in this repo. Anyone may use,
+> modify and redistribute it with attribution. (`package.json` is set to
+> `"license": "MIT"` to match.)
